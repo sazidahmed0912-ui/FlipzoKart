@@ -259,12 +259,12 @@ app.post('/api/checkout-success', async (req, res) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['line_items'] });
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
-    // Create order record
+    // Create order record (MongoDB)
     const userEmail = session.customer_details?.email || 'guest';
     const user = users.find(u => u.email === userEmail);
     const userId = user ? user._id : 'guest';
 
-    const items = session.line_items.data.map(li => ({ productId: li.price.product || '', name: li.description || li.price.product, price: (li.price.unit_amount || 0) / 100, quantity: li.quantity }));
+    const items = session.line_items.data.map(li => ({ productId: '', name: li.description || '', price: (li.price.unit_amount || 0) / 100, quantity: li.quantity }));
     const total = (session.amount_total || 0) / 100;
 
     const order = new Order({ userId, items, total, status: 'paid' });
@@ -413,16 +413,21 @@ app.post('/api/auth/signup', async (req, res) => {
 // LOGIN
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required!" });
+    if (!email || !password || !role) {
+      return res.status(400).json({ error: "Email, password, and role are required!" });
     }
 
     // Find user
     const user = users.find(u => u.email === email);
     if (!user) {
       return res.status(400).json({ error: "User not found!" });
+    }
+
+    // Check role
+    if (user.role !== role) {
+      return res.status(403).json({ error: `Not authorized as ${role}` });
     }
 
     // Compare password
