@@ -89,3 +89,5 @@ App will run on `http://localhost:3000`
  - Frontend and backend run as separate servers
 
 Happy Coding! 🎉
+This project is protected with CI and branch rules.
+
