@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -14,16 +14,56 @@ const mongoose = require('mongoose');
 mongoose.set('bufferCommands', false); // Fail fast if not connected
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/flipzokart';
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.warn('⚠️ MongoDB connection error:', err.message));
+if (!MONGO_URI || typeof MONGO_URI !== 'string' || !MONGO_URI.startsWith('mongodb')) {
+  console.error('❌ Invalid or missing MONGO_URI. Please set the MONGO_URI environment variable to a valid MongoDB connection string.');
+  process.exit(1);
+}
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
+function connectWithRetry() {
+  console.log('---------------------------------------------');
+  console.log(`🔎 Attempting MongoDB connection to: ${MONGO_URI}`);
+  mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => {
+      console.log('✅ Connected to MongoDB');
+      reconnectAttempts = 0;
+    })
+    .catch(err => {
+      reconnectAttempts++;
+      console.error(`❌ MongoDB connection error: ${err.message}`);
+      if (err.stack) console.error(err.stack);
+      if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+        console.warn(`⚠️ Retrying MongoDB connection (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}) in 2 seconds...`);
+        setTimeout(connectWithRetry, 2000);
+      } else {
+        console.error('❌ Could not connect to MongoDB after multiple attempts. Please check your MONGO_URI, network, and MongoDB server status. Exiting.');
+        process.exit(1);
+      }
+    });
+}
+
+connectWithRetry();
+
+mongoose.connection.on('connected', () => {
+  console.log('✅ Mongoose connected');
+});
+mongoose.connection.on('reconnected', () => {
+  console.log('🔄 Mongoose reconnected');
+  reconnectAttempts = 0;
+});
 mongoose.connection.on('error', err => {
   console.error('❌ Mongoose connection error:', err.message);
+  if (err.stack) console.error(err.stack);
 });
 mongoose.connection.on('disconnected', () => {
-  console.warn('⚠️ Mongoose disconnected. Attempting to reconnect...');
-  mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+  if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    console.warn('⚠️ Mongoose disconnected. Attempting to reconnect...');
+    connectWithRetry();
+  } else {
+    console.error('❌ Mongoose disconnected and max reconnect attempts reached. Exiting.');
+    process.exit(1);
+  }
 });
 
 // Order schema (MongoDB)
