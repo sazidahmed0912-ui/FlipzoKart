@@ -50,6 +50,7 @@ import CheckoutForm from './components/CheckoutForm';
 import OrderConfirmationTemplate from './components/OrderConfirmationTemplate';
 import ModernOrderConfirmation from './components/ModernOrderConfirmation';
 import axios from 'axios';
+import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'signup', 'home', 'shop', 'categories', 'cart', 'checkout', 'account', 'admin'
@@ -312,6 +313,8 @@ function App() {
     }
   };
 
+  // Function to render the appropriate page
+  const renderPage = () => {
   // ===== THANKYOU PAGE =====
   if (currentPage === 'thankyou') {
     // Find the latest order for the user (if available)
@@ -1164,6 +1167,15 @@ function App() {
       </div>
     );
   }
+  };
+
+  // Return the page content wrapped with Analytics
+  return (
+    <>
+      <Analytics />
+      {renderPage()}
+    </>
+  );
 }
 
 export default App;
