@@ -46,27 +46,15 @@ Team [Brand Name]
 ==============================
 */
 import React, { useState, useEffect } from 'react';
-import DiwaliFireworksBanner from './components/DiwaliFireworksBanner';
-import NewYearBanner from './components/NewYearBanner';
 import CheckoutForm from './components/CheckoutForm';
 import OrderConfirmationTemplate from './components/OrderConfirmationTemplate';
 import ModernOrderConfirmation from './components/ModernOrderConfirmation';
-import BannerCarousel from './components/BannerCarousel';
 import axios from 'axios';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'signup', 'home', 'shop', 'categories', 'cart', 'checkout', 'account', 'admin'
   const [user, setUser] = useState(null);
-  const [products, setProducts] = useState([
-    {
-      _id: 'demo1',
-      name: 'Automatic Water Dispenser',
-      price: 349,
-      image: '/WhatsApp Image 2025-12-27 at 6.55.05 PM.jpeg',
-      category: 'Home Appliances',
-      stock: 20
-    }
-  ]);
+  const [products, setProducts] = useState([]);
   // Persistent cart using localStorage
   const [cart, setCart] = useState(() => {
     const savedCart = localStorage.getItem('cart');
@@ -85,8 +73,7 @@ function App() {
       })
         .then(res => {
           setUser(res.data.user);
-          // If user just signed up, keep them on shop page after refresh
-          setCurrentPage(prev => (prev === 'signup' ? 'shop' : 'home'));
+          setCurrentPage('home');
           fetchProducts();
           fetchOrders(); // Fetch orders on login
         })
@@ -513,24 +500,7 @@ function App() {
     return (
       <div className="bg-gray-100 min-h-screen font-sans">
         <Navbar />
-        {/* Happy New Year 2026 Box with fireworks */}
-        <div className="max-w-7xl mx-auto px-6 pt-6">
-          <div className="relative bg-gradient-to-r from-blue-900 via-purple-900 to-pink-700 rounded-3xl shadow-2xl p-8 flex flex-col items-center justify-center" style={{ minHeight: '340px' }}>
-            <div className="absolute inset-0 z-0" style={{ borderRadius: '1.5rem', overflow: 'hidden' }}>
-              <DiwaliFireworksBanner />
-            </div>
-            <div className="relative z-10 flex flex-col items-center justify-center" style={{ pointerEvents: 'none' }}>
-              <h1 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow-lg mb-2 text-center tracking-wide" style={{ textShadow: '0 0 24px #FFD700, 0 0 8px #fff' }}>
-                🎆 Happy New Year 2026 🎆
-              </h1>
-              <p className="text-lg md:text-xl text-white/80 font-semibold text-center">Wishing you joy, success, and celebration!</p>
-            </div>
-          </div>
-        </div>
-        {/* Banner Carousel - swipeable banners below Fireworks Banner */}
-        <div className="max-w-7xl mx-auto px-6 pt-6">
-          <BannerCarousel />
-        </div>
+        
         {/* HERO BANNER */}
         <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-orange-500 text-white">
           <div className="max-w-7xl mx-auto px-6 py-24 flex items-center justify-between">
@@ -540,6 +510,7 @@ function App() {
               </h1>
               <p className="text-xl mb-2 opacity-90">Best products, Best prices, Best service!</p>
               <p className="text-lg mb-8 opacity-80">Lakh+ satisfied customers trust Flipzokart</p>
+              
               <div className="flex space-x-4">
                 <button 
                   onClick={() => setCurrentPage('categories')}
@@ -554,6 +525,7 @@ function App() {
                   📂 Explore Categories
                 </button>
               </div>
+              
               <div className="flex space-x-8 mt-12">
                 <div>
                   <p className="text-3xl font-bold">10K+</p>
@@ -569,6 +541,7 @@ function App() {
                 </div>
               </div>
             </div>
+            
             <div className="flex-1 text-center">
               <div className="text-9xl">🛒</div>
               <p className="text-2xl font-bold mt-4">Welcome to Flipzokart!</p>
@@ -576,7 +549,7 @@ function App() {
             </div>
           </div>
         </div>
-
+        
         <div className="p-10">
           {/* FEATURED PRODUCTS */}
           <h2 className="text-3xl font-bold mb-6 text-center">🔥 Featured Products</h2>
@@ -1128,37 +1101,20 @@ function App() {
             {products.length === 0 ? (
               <p className="text-gray-500 text-lg">No products available</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white rounded shadow-md">
-                  <thead>
-                    <tr>
-                      <th className="px-4 py-2">Image</th>
-                      <th className="px-4 py-2">Name</th>
-                      <th className="px-4 py-2">Category</th>
-                      <th className="px-4 py-2">Price</th>
-                      <th className="px-4 py-2">Stock</th>
-                      <th className="px-4 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map(p => (
-                      <tr key={p._id} className="border-t">
-                        <td className="px-4 py-2"><img src={p.image} alt={p.name} className="h-12 w-12 object-contain rounded" /></td>
-                        <td className="px-4 py-2 font-bold">{p.name}</td>
-                        <td className="px-4 py-2">{p.category || 'General'}</td>
-                        <td className="px-4 py-2 text-green-600 font-bold">₹{p.price}</td>
-                        <td className="px-4 py-2">{p.stock || 'N/A'}</td>
-                        <td className="px-4 py-2">
-                          {/* Edit button can be implemented here */}
-                          <button onClick={() => handleDelete(p._id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 font-bold">🗑️ Delete</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 gap-4">
+                {products.map(p => (
+                  <div key={p._id} className="bg-white p-4 rounded shadow-md flex justify-between items-center">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg">{p.name}</h3>
+                      <p className="text-green-600 font-bold">₹{p.price}</p>
+                      <p className="text-sm text-gray-600">{p.category || 'General'} | Stock: {p.stock || 'N/A'}</p>
+                    </div>
+                    <button onClick={() => handleDelete(p._id)} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-bold">🗑️ Delete</button>
+                  </div>
+                ))}
               </div>
             )}
-
+            
             {/* ADMIN ORDERS */}
             <div className="mt-8 bg-white p-6 rounded shadow">
               <h3 className="text-2xl font-bold mb-4">📋 Orders</h3>
