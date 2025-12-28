@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -19,9 +20,18 @@ jobs:
 
       - name: Install dependencies
         run: |
+          echo "Installing server dependencies..."
+          cd server
           npm install
-          cd client && npm install || true
-          cd server && npm install || true
+
+          echo "Installing client dependencies..."
+          cd ../client
+          npm install
+
+      - name: Build client
+        run: |
+          cd client
+          npm run build
 
       - name: CI Check Complete
-        run: echo "FlipzoKart CI passed"
+        run: echo "FlipzoKart CI passed successfully"
