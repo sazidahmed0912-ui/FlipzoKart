@@ -2,8 +2,8 @@ name: FlipzoKart CI
 
 on:
   pull_request:
-  push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
@@ -13,25 +13,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Install dependencies
+      - name: Install server dependencies
         run: |
-          echo "Installing server dependencies..."
           cd server
           npm install
 
-          echo "Installing client dependencies..."
-          cd ../client
+      - name: Install client dependencies
+        run: |
+          cd client
           npm install
 
       - name: Build client
         run: |
           cd client
-          npm run build
-
-      - name: CI Check Complete
-        run: echo "FlipzoKart CI passed successfully"
+          CI=false npm run build
