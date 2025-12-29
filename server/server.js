@@ -1,8 +1,11 @@
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -29,14 +32,16 @@ mongoose.connection.on('disconnected', () => {
 // Order schema (MongoDB)
 const orderSchema = new mongoose.Schema({
   userId: String,
-  items: [{ productId: String, name: String, price: Number, quantity: Number }],
+  items: [{ productId: String, name: String, price: Number, quantity: Number, image: String }],
   total: Number,
   status: { type: String, default: 'pending' },
+  paymentMethod: { type: String, default: 'COD' },
   shipping: {
     name: String,
     phone: String,
     address: String,
     city: String,
+    state: String,
     pincode: String,
     locality: String,
     landmark: String
@@ -52,6 +57,16 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_flipzokart';
+
+// Razorpay keys (do NOT log secrets)
+const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
+if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+  console.warn('⚠️ Razorpay keys missing: set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server/.env');
+}
+
+const razorpay = (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET)
+  ? new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET })
+  : null;
 
 // ===== IN-MEMORY STORAGE (For Testing) =====
 let users = [
@@ -196,6 +211,36 @@ app.post('/api/products', (req, res) => {
   }
 });
 
+app.get('/api/payment/config', (req, res) => {
+  return res.json({ keyId: process.env.RAZORPAY_KEY_ID || null });
+});
+
+app.post('/api/payment/verify', (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: 'Missing Razorpay payment fields' });
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return res.status(500).json({ error: 'Razorpay secret is not configured on server' });
+    }
+
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+    if (expected !== razorpay_signature) {
+      return res.status(400).json({ verified: false, error: 'Invalid signature' });
+    }
+
+    return res.json({ verified: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete product
 app.delete('/api/products/:id', (req, res) => {
   try {
@@ -221,11 +266,49 @@ app.put('/api/products/:id', (req, res) => {
   }
 });
 
+app.post('/api/payment/create-order', async (req, res) => {
+  try {
+    if (!razorpay) {
+      return res.status(500).json({ error: 'Razorpay is not configured on server' });
+    }
+
+    const { amount } = req.body || {};
+    const amountInr = Number(amount);
+
+    if (!Number.isFinite(amountInr) || amountInr <= 0) {
+      return res.status(400).json({ error: 'Valid amount (INR) is required' });
+    }
+
+    const amountPaise = Math.round(amountInr * 100);
+
+    const order = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: `rcpt_${Date.now()}`
+    });
+
+    return res.json(order);
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to create order' });
+  }
+});
+
 // Create Stripe Checkout Session
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
     const { items } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'No items provided' });
+
+    let customerEmail;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        customerEmail = decoded.email;
+      } catch (e) {
+        // ignore invalid token
+      }
+    }
 
     const line_items = items.map(i => ({
       price_data: {
@@ -240,6 +323,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
+      customer_email: customerEmail,
       success_url: `${CLIENT_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${CLIENT_URL}?checkout=cancel`
     });
@@ -285,10 +369,18 @@ app.post('/api/orders', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Token required' });
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const { items, total } = req.body;
+    const { items, total, shipping, paymentMethod } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'Order items required' });
 
-    const order = new Order({ userId: decoded.userId, items, total, status: 'pending' });
+    const status = paymentMethod && paymentMethod !== 'COD' ? 'paid' : 'pending';
+    const order = new Order({
+      userId: decoded.userId,
+      items,
+      total,
+      shipping,
+      paymentMethod: paymentMethod || 'COD',
+      status
+    });
     await order.save();
     res.json({ message: 'Order created', order });
   } catch (err) {
@@ -302,9 +394,9 @@ app.get('/api/orders', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ error: 'Token required' });
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
 
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const query = decoded.role === 'admin' ? {} : { userId: decoded.userId };
+    const orders = await Order.find(query).sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -415,8 +507,8 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    if (!email || !password || !role) {
-      return res.status(400).json({ error: "Email, password, and role are required!" });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required!" });
     }
 
     // Find user
@@ -425,8 +517,8 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: "User not found!" });
     }
 
-    // Check role
-    if (user.role !== role) {
+    // Check role only if frontend sends it
+    if (role && user.role !== role) {
       return res.status(403).json({ error: `Not authorized as ${role}` });
     }
 
