@@ -51,6 +51,8 @@ import OrderConfirmationTemplate from './components/OrderConfirmationTemplate';
 import ModernOrderConfirmation from './components/ModernOrderConfirmation';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'signup', 'home', 'shop', 'categories', 'cart', 'checkout', 'account', 'admin'
   const [user, setUser] = useState(null);
@@ -68,7 +70,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      axios.get('http://localhost:5000/api/auth/profile', {
+      axios.get(`${API_BASE_URL}/api/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => {
@@ -91,7 +93,7 @@ function App() {
       const sessionId = params.get('session_id');
       const token = localStorage.getItem('token');
       // call backend to convert session into an order
-      axios.post('http://localhost:5000/api/checkout-success', { sessionId }, { headers: { Authorization: `Bearer ${token}` } })
+      axios.post(`${API_BASE_URL}/api/checkout-success`, { sessionId }, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => {
           alert('✅ Payment successful and order created');
           setCart([]);
@@ -107,7 +109,7 @@ function App() {
   }, []);
 
   const fetchProducts = () => {
-    axios.get('http://localhost:5000/api/products')
+    axios.get(`${API_BASE_URL}/api/products`)
       .then(res => setProducts(res.data))
       .catch(err => console.error("Error:", err));
   };
@@ -138,7 +140,7 @@ function App() {
     }
 
     setLoading(true);
-    axios.post('http://localhost:5000/api/auth/signup', { name, email, password })
+    axios.post(`${API_BASE_URL}/api/auth/signup`, { name, email, password })
       .then(res => {
         alert("✅ Signup successful! Please log in.");
         localStorage.setItem('token', res.data.token);
@@ -158,7 +160,7 @@ function App() {
     const password = document.getElementById('login-password').value;
 
     setLoading(true);
-    axios.post('http://localhost:5000/api/auth/login', { email, password })
+    axios.post(`${API_BASE_URL}/api/auth/login`, { email, password })
       .then(res => {
         alert("✅ Login successful!");
         localStorage.setItem('token', res.data.token);
@@ -229,7 +231,7 @@ function App() {
 
     setLoading(true);
     const token = localStorage.getItem('token');
-    axios.post('http://localhost:5000/api/products', form, {
+    axios.post(`${API_BASE_URL}/api/products`, form, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(() => {
@@ -248,6 +250,7 @@ function App() {
   const [shipping, setShipping] = useState({ name: '', phone: '', address: '', city: '', state: '', pincode: '', locality: '', landmark: '' });
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [checkoutStep, setCheckoutStep] = useState(1); // 1: shipping, 2: payment
+  const [razorpayKeyId, setRazorpayKeyId] = useState(null);
 
   const handleCheckout = () => {
     if (!user) {
@@ -262,7 +265,7 @@ function App() {
     const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
     setOrderLoading(true);
     const token = localStorage.getItem('token');
-    axios.post('http://localhost:5000/api/orders', { items, total: cartTotal, shipping }, { headers: { Authorization: `Bearer ${token}` } })
+    axios.post(`${API_BASE_URL}/api/orders`, { items, total: cartTotal, shipping, paymentMethod }, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         alert('✅ Order placed successfully!');
         setCart([]);
@@ -277,14 +280,14 @@ function App() {
   const fetchOrders = () => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    axios.get('http://localhost:5000/api/orders', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(`${API_BASE_URL}/api/orders`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setOrders(res.data))
       .catch(err => console.error('Orders fetch error', err.message));
   };
 
   const updateOrderStatus = (id, status) => {
     const token = localStorage.getItem('token');
-    axios.put(`http://localhost:5000/api/orders/${id}`, { status }, { headers: { Authorization: `Bearer ${token}` } })
+    axios.put(`${API_BASE_URL}/api/orders/${id}`, { status }, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => fetchOrders())
       .catch(err => alert('❌ Error: ' + (err.response?.data?.error || err.message)));
   };
@@ -292,7 +295,7 @@ function App() {
   const handleDeleteOrder = (id) => {
     if (!window.confirm('Delete this order?')) return;
     const token = localStorage.getItem('token');
-    axios.delete(`http://localhost:5000/api/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+    axios.delete(`${API_BASE_URL}/api/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => fetchOrders())
       .catch(err => alert('❌ Error: ' + (err.response?.data?.error || err.message)));
   };
@@ -301,7 +304,7 @@ function App() {
   const handleDelete = (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       const token = localStorage.getItem('token');
-      axios.delete(`http://localhost:5000/api/products/${id}`, {
+      axios.delete(`${API_BASE_URL}/api/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(() => {
@@ -310,6 +313,107 @@ function App() {
         })
         .catch(err => alert("❌ Error: " + err.message));
     }
+  };
+
+  const loadRazorpay = () => {
+    return new Promise(resolve => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const ensureRazorpayKey = async () => {
+    if (razorpayKeyId) return razorpayKeyId;
+    const res = await axios.get(`${API_BASE_URL}/api/payment/config`);
+    setRazorpayKeyId(res.data.keyId);
+    return res.data.keyId;
+  };
+
+  const createOrderInBackend = async ({ paymentMethodValue }) => {
+    const token = localStorage.getItem('token');
+    const items = cart.map(i => ({
+      productId: i._id,
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+      image: i.image
+    }));
+
+    const res = await axios.post(
+      `${API_BASE_URL}/api/orders`,
+      { items, total: cartTotal, shipping, paymentMethod: paymentMethodValue },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    return res.data;
+  };
+
+  const startStripeCheckout = async () => {
+    const token = localStorage.getItem('token');
+    const items = cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity }));
+    const res = await axios.post(
+      `${API_BASE_URL}/api/create-checkout-session`,
+      { items },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.data?.url) throw new Error('Stripe checkout URL missing');
+    window.location.href = res.data.url;
+  };
+
+  const startRazorpayCheckout = async () => {
+    const scriptOk = await loadRazorpay();
+    if (!scriptOk) throw new Error('Razorpay SDK failed to load');
+
+    const keyId = await ensureRazorpayKey();
+    if (!keyId) throw new Error('Razorpay keyId missing (check server env)');
+
+    const { data: rpOrder } = await axios.post(`${API_BASE_URL}/api/payment/create-order`, {
+      amount: cartTotal
+    });
+
+    const options = {
+      key: keyId,
+      amount: rpOrder.amount,
+      currency: rpOrder.currency,
+      name: 'Flipzokart',
+      description: 'Order Payment',
+      order_id: rpOrder.id,
+      handler: async function (response) {
+        try {
+          await axios.post(`${API_BASE_URL}/api/payment/verify`, response);
+          await createOrderInBackend({ paymentMethodValue: 'UPI' });
+
+          setCart([]);
+          localStorage.removeItem('cart');
+          fetchOrders();
+          setCurrentPage('thankyou');
+        } catch (err) {
+          alert('❌ Payment verification failed: ' + (err.response?.data?.error || err.message));
+        }
+      },
+      prefill: {
+        name: shipping.name,
+        email: user?.email,
+        contact: shipping.phone
+      },
+      notes: {
+        address: shipping.address
+      },
+      theme: {
+        color: '#4f46e5'
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', function (response) {
+      alert('❌ Payment failed');
+    });
+    rzp.open();
   };
 
   // ===== THANKYOU PAGE =====
@@ -926,22 +1030,51 @@ function App() {
                       setCurrentPage('login');
                       return;
                     }
-                    setOrderLoading(true);
-                    const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
-                    const token = localStorage.getItem('token');
-                    axios.post('http://localhost:5000/api/orders', { items, total: cartTotal, shipping, paymentMethod }, { headers: { Authorization: `Bearer ${token}` } })
-                      .then(res => {
+                    if (!cart || cart.length === 0) {
+                      alert('Cart is empty');
+                      return;
+                    }
+                    if (!shipping.name || !shipping.phone || !shipping.address || !shipping.city || !shipping.state || !shipping.pincode || !shipping.locality || !shipping.landmark) {
+                      alert('Please fill all shipping details');
+                      return;
+                    }
+
+                    (async () => {
+                      try {
+                        setOrderLoading(true);
+
+                        if (paymentMethod === 'COD') {
+                          await createOrderInBackend({ paymentMethodValue: 'COD' });
+                          setCart([]);
+                          localStorage.removeItem('cart');
+                          fetchOrders();
+                          setCurrentPage('thankyou');
+                          setTimeout(() => fetchOrders(), 500);
+                          return;
+                        }
+
+                        if (paymentMethod === 'UPI') {
+                          await startRazorpayCheckout();
+                          return;
+                        }
+
+                        if (paymentMethod === 'DEBIT' || paymentMethod === 'CREDIT') {
+                          await startStripeCheckout();
+                          return;
+                        }
+
+                        await createOrderInBackend({ paymentMethodValue: 'COD' });
                         setCart([]);
                         localStorage.removeItem('cart');
                         fetchOrders();
                         setCurrentPage('thankyou');
-                        // Ensure orders are fetched again after navigating to thankyou
                         setTimeout(() => fetchOrders(), 500);
-                      })
-                      .catch(err => {
-                        alert('❌ Error placing order: ' + (err.response?.data?.error || err.message));
-                      })
-                      .finally(() => setOrderLoading(false));
+                      } catch (err) {
+                        alert('❌ Payment failed: ' + (err.response?.data?.error || err.message));
+                      } finally {
+                        setOrderLoading(false);
+                      }
+                    })();
                   }}
                 >
                   {orderLoading ? 'Placing Order...' : 'Place Order'}
