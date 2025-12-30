@@ -22,7 +22,14 @@ const mongoose = require('mongoose');
 mongoose.set('bufferCommands', false); // Fail fast if not connected
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/flipzokart';
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  tls: true,
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true,
+  tlsInsecure: true,
+})
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.warn('⚠️ MongoDB connection error:', err.message));
 
@@ -31,7 +38,14 @@ mongoose.connection.on('error', err => {
 });
 mongoose.connection.on('disconnected', () => {
   console.warn('⚠️ Mongoose disconnected. Attempting to reconnect...');
-  mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+  mongoose.connect(MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    tls: true,
+    tlsAllowInvalidCertificates: true,
+    tlsAllowInvalidHostnames: true,
+    tlsInsecure: true,
+  });
 });
 
 // Order schema (MongoDB)
