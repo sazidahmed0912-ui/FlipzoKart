@@ -48,11 +48,32 @@ const orderSchema = new mongoose.Schema({
   },
   createdAt: { type: Date, default: Date.now }
 });
-const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
 
-// Stripe setup
-const Stripe = require('stripe');
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_replace_me');
+const Order = mongoose.model('Order', orderSchema);
+
+// User schema (MongoDB)
+const userSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  name: { type: String, required: true },
+  role: { type: String, default: 'user' }
+});
+
+const User = mongoose.model('User', userSchema);
+
+// Product schema (MongoDB)
+const productSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  image: { type: String },
+  category: { type: String },
+  stock: { type: Number, default: 0 }
+});
+
+const Product = mongoose.model('Product', productSchema);
+
+// ===== CONFIGURATION =====
+const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
 // JWT Secret
@@ -71,129 +92,64 @@ const razorpay = (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET)
 // ===== IN-MEMORY STORAGE (For Testing) =====
 let users = [
   {
-    _id: '1',
-    name: 'Admin User',
-    email: 'admin@flipzokart.com',
-    password: bcrypt.hashSync('admin123', 10),
-    role: 'admin'
+    id: "1",
+    email: "admin@flipzokart.com",
+    password: "admin123",
+    name: "Admin",
+    role: "admin"
   }
 ];
 
 let products = [
-  {
-    _id: '1',
-    name: 'iPhone 15',
-    price: 79999,
-    image: 'https://via.placeholder.com/300x300?text=iPhone+15',
-    category: 'Smart Gadgets',
-    stock: 50
-  },
-  {
-    _id: '2',
-    name: 'Samsung Galaxy',
-    price: 59999,
-    image: 'https://via.placeholder.com/300x300?text=Samsung',
-    category: 'Smart Gadgets',
-    stock: 30
-  },
-  {
-    _id: '3',
-    name: 'Mens Casual Shirt',
-    price: 1299,
-    image: 'https://via.placeholder.com/300x300?text=Casual+Shirt',
-    category: 'Fashion',
-    stock: 100
-  },
-  {
-    _id: '4',
-    name: 'Womens Denim Jeans',
-    price: 1899,
-    image: 'https://via.placeholder.com/300x300?text=Denim+Jeans',
-    category: 'Fashion',
-    stock: 75
-  },
-  {
-    _id: '5',
-    name: 'Face Moisturizer Cream',
-    price: 599,
-    image: 'https://via.placeholder.com/300x300?text=Moisturizer',
-    category: 'Beauty & Personal Care',
-    stock: 150
-  },
-  {
-    _id: '6',
-    name: 'Hair Shampoo Bottle',
-    price: 399,
-    image: 'https://via.placeholder.com/300x300?text=Shampoo',
-    category: 'Beauty & Personal Care',
-    stock: 120
-  },
-  {
-    _id: '7',
-    name: '55 inch Smart TV',
-    price: 34999,
-    image: 'https://via.placeholder.com/300x300?text=Smart+TV',
-    category: 'Home Electronics',
-    stock: 20
-  },
-  {
-    _id: '8',
-    name: 'Washing Machine',
-    price: 29999,
-    image: 'https://via.placeholder.com/300x300?text=Washing+Machine',
-    category: 'Home Electronics',
-    stock: 15
-  },
-  {
-    _id: '9',
-    name: 'Wireless Bluetooth Speaker',
-    price: 2499,
-    image: 'https://via.placeholder.com/300x300?text=Bluetooth+Speaker',
-    category: 'Smart Gadgets',
-    stock: 80
-  },
-  {
-    _id: '10',
-    name: 'Kids Building Blocks Set',
-    price: 899,
-    image: 'https://via.placeholder.com/300x300?text=Building+Blocks',
-    category: 'Toys',
-    stock: 200
-  },
-  {
-    _id: '11',
-    name: 'Remote Control Car',
-    price: 1599,
-    image: 'https://via.placeholder.com/300x300?text=RC+Car',
-    category: 'Toys',
-    stock: 60
-  },
-  {
-    _id: '12',
-    name: 'Board Game Collection',
-    price: 799,
-    image: 'https://via.placeholder.com/300x300?text=Board+Game',
-    category: 'Toys',
-    stock: 90
-  }
+  { id: "1", name: "iPhone 15", price: 79999, image: "https://via.placeholder.com/300x300/007bff/ffffff?text=iPhone+15", category: "Electronics", stock: 10 },
+  { id: "2", name: "Samsung Galaxy", price: 59999, image: "https://via.placeholder.com/300x300/28a745/ffffff?text=Samsung+Galaxy", category: "Electronics", stock: 15 },
+  { id: "3", name: "Nike Shoes", price: 4999, image: "https://via.placeholder.com/300x300/dc3545/ffffff?text=Nike+Shoes", category: "Footwear", stock: 20 },
+  { id: "4", name: "Adidas T-Shirt", price: 1999, image: "https://via.placeholder.com/300x300/ffc107/000000?text=Adidas+T-Shirt", category: "Clothing", stock: 25 }
 ];
 
-// ===== PRODUCTS ROUTES =====
+// ===== MIDDLEWARE =====
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-// Get all products
-app.get('/api/products', (req, res) => {
-  res.json(products);
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// ===== ROUTES =====
+
+// 🩺 Health
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: "OK",
+    db: {
+      connected: mongoose.connection.readyState === 1
+    }
+  });
 });
 
-// Add product
-app.post('/api/products', (req, res) => {
+// 🔐 LOGIN — rock solid
+app.post('/api/auth/login', async (req, res) => {
   try {
-    const { name, price, image, category, stock } = req.body;
-    
-    if (!name || !price || !image) {
-      return res.status(400).json({ error: "Name, Price and Image are required!" });
+    const { email, password, role } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required!" });
     }
 
+<<<<<<< HEAD
+    // Find user in MongoDB first, fallback to memory
+    let user = await User.findOne({ email });
+=======
     const newProduct = {
       _id: Date.now().toString(),
       name,
@@ -258,14 +214,52 @@ app.put('/api/products/:id', (req, res) => {
     if (!product) {
       return res.status(404).json({ error: "Product not found!" });
     }
+>>>>>>> main
     
-    Object.assign(product, req.body);
-    res.json({ message: "✅ Product Updated!", product });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    if (!user) {
+      // Fallback to memory users
+      user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    }
 
+<<<<<<< HEAD
+    if (!user) {
+      return res.status(400).json({ error: "User not found!" });
+    }
+
+    // Check role only if frontend sends it
+    if (role && user.role !== role) {
+      return res.status(403).json({ error: `Not authorized as ${role}` });
+    }
+
+    // Check password (bcrypt for MongoDB users, plain for memory users)
+    let passwordValid = false;
+    if (user.password && user.password.startsWith('$2')) {
+      // bcrypt password
+      passwordValid = await bcrypt.compare(password, user.password);
+    } else {
+      // Plain text password (memory users)
+      passwordValid = user.password === password;
+    }
+
+    if (!passwordValid) {
+      return res.status(401).json({ error: "Invalid password!" });
+    }
+
+    const token = jwt.sign(
+      { id: user.id || user._id, email: user.email, role: user.role || 'user' },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ 
+      token,
+      user: {
+        id: user.id || user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role || 'user'
+      }
+=======
 app.post('/api/payment/create-order', async (req, res) => {
   try {
     if (!razorpay) {
@@ -326,14 +320,16 @@ app.post('/api/create-checkout-session', async (req, res) => {
       customer_email: customerEmail,
       success_url: `${CLIENT_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${CLIENT_URL}?checkout=cancel`
+>>>>>>> main
     });
-
-    res.json({ url: session.url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+<<<<<<< HEAD
+// 🔐 SIGNUP
+=======
 // Handle checkout success: create order from Stripe session
 app.post('/api/checkout-success', async (req, res) => {
   try {
@@ -457,54 +453,60 @@ app.delete('/api/orders/:id', async (req, res) => {
 // ===== AUTHENTICATION ROUTES =====
 
 // SIGNUP
+>>>>>>> main
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { email, password, name, role = 'user' } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "All fields are required!" });
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: "Email, password, and name are required!" });
     }
 
-    // Check if user exists
-    const existingUser = users.find(u => u.email === email);
+    // Check if user already exists in MongoDB
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: "Email already registered!" });
+      return res.status(400).json({ error: "User already exists!" });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const newUser = {
-      _id: Date.now().toString(),
-      name,
+    // Create new user in MongoDB
+    const newUser = new User({
       email,
       password: hashedPassword,
-      role: 'user'
-    };
+      name,
+      role
+    });
 
-    users.push(newUser);
+    await newUser.save();
 
-    // Generate JWT token
     const token = jwt.sign(
-      { userId: newUser._id, email: newUser.email, role: newUser.role },
+      { id: newUser._id, email: newUser.email, role: newUser.role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    res.json({
-      message: "✅ Signup successful!",
+    res.status(201).json({ 
       token,
-      user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role }
+      user: {
+        id: newUser._id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role
+      }
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// LOGIN
-app.post('/api/auth/login', async (req, res) => {
+// 👤 PROFILE (protected)
+app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
+<<<<<<< HEAD
+    const userId = req.user.id;
+=======
     const { email, password, role } = req.body;
 
     if (!email || !password) {
@@ -555,42 +557,147 @@ app.get('/api/auth/profile', (req, res) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = users.find(u => u._id === decoded.userId);
+>>>>>>> main
     
+    // Try MongoDB first
+    let user = await User.findById(userId);
+    
+    if (!user) {
+      // Fallback to memory users
+      user = users.find(u => u.id === userId);
+    }
+
     if (!user) {
       return res.status(404).json({ error: "User not found!" });
     }
 
-    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } });
-  } catch (error) {
-    res.status(401).json({ error: "Invalid token!" });
+    res.json({
+      id: user.id || user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role || 'user'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// DEV: Promote a user to admin (temporary helper)
-app.post('/api/auth/promote', (req, res) => {
+// 📦 PRODUCTS
+app.get('/api/products', async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email required' });
+    // Try MongoDB first
+    const mongoProducts = await Product.find();
+    if (mongoProducts.length > 0) {
+      return res.json(mongoProducts);
+    }
+    
+    // Fallback to memory products
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    const user = users.find(u => u.email === email);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+// 📦 CREATE PRODUCT (admin only)
+app.post('/api/products', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
 
-    user.role = 'admin';
-    return res.json({ message: 'User promoted to admin', user: { id: user._id, email: user.email, role: user.role } });
+    const { name, price, image, category, stock } = req.body;
+
+    if (!name || !price) {
+      return res.status(400).json({ error: 'Name and price are required' });
+    }
+
+    const newProduct = new Product({
+      name,
+      price,
+      image,
+      category,
+      stock
+    });
+
+    await newProduct.save();
+    res.status(201).json(newProduct);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 💳 PAYMENT CONFIG
+app.get('/api/payment/config', (req, res) => {
+  return res.json({ keyId: process.env.RAZORPAY_KEY_ID || null });
+});
+
+// 💳 PAYMENT VERIFY
+app.post('/api/payment/verify', (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: 'Missing Razorpay payment fields' });
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return res.status(500).json({ error: 'Razorpay secret is not configured on server' });
+    }
+
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+    if (expected !== razorpay_signature) {
+      return res.status(400).json({ verified: false, error: 'Invalid signature' });
+    }
+
+    return res.json({ verified: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: "✅ Server is running!", users: users.length, products: products.length });
+// 💳 CREATE RAZORPAY ORDER
+app.post('/api/payment/create-order', async (req, res) => {
+  try {
+    if (!razorpay) {
+      return res.status(500).json({ error: 'Razorpay is not configured on server' });
+    }
+
+    const { amount } = req.body || {};
+    const amountInr = Number(amount);
+
+    if (!Number.isFinite(amountInr) || amountInr <= 0) {
+      return res.status(400).json({ error: 'Valid amount (INR) is required' });
+    }
+
+    const amountPaise = Math.round(amountInr * 100);
+
+    const order = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: `rcpt_${Date.now()}`
+    });
+
+    return res.json(order);
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to create order' });
+  }
 });
 
-// Root route
-app.get('/', (req, res) => {
-  res.send('Welcome to Flipzokart!');
-});
+// 🚀 START SERVER
+const start = async () => {
+  try {
+    app.listen(PORT, () => {
+      console.log(`🔥 Server running on http://localhost:${PORT}`);
+      console.log(`📱 Client URL: ${CLIENT_URL}`);
+      console.log(`💳 Razorpay: ${razorpay ? '✅ Configured' : '❌ Not configured'}`);
+    });
+  } catch (err) {
+    console.error('❌ Failed to start server:', err);
+    process.exit(1);
+  }
+};
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+start();
