@@ -146,14 +146,82 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: "Email and password are required!" });
     }
 
+<<<<<<< HEAD
     // Find user in MongoDB first, fallback to memory
     let user = await User.findOne({ email });
+=======
+    const newProduct = {
+      _id: Date.now().toString(),
+      name,
+      price: Number(price),
+      image,
+      category: category || 'General',
+      stock: Number(stock) || 0,
+      createdAt: new Date()
+    };
+
+    products.push(newProduct);
+    res.json({ message: "✅ Product Added!", product: newProduct });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/payment/config', (req, res) => {
+  return res.json({ keyId: process.env.RAZORPAY_KEY_ID || null });
+});
+
+app.post('/api/payment/verify', (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: 'Missing Razorpay payment fields' });
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return res.status(500).json({ error: 'Razorpay secret is not configured on server' });
+    }
+
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+    if (expected !== razorpay_signature) {
+      return res.status(400).json({ verified: false, error: 'Invalid signature' });
+    }
+
+    return res.json({ verified: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete product
+app.delete('/api/products/:id', (req, res) => {
+  try {
+    products = products.filter(p => p._id !== req.params.id);
+    res.json({ message: "✅ Product Deleted!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update product
+app.put('/api/products/:id', (req, res) => {
+  try {
+    const product = products.find(p => p._id === req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found!" });
+    }
+>>>>>>> main
     
     if (!user) {
       // Fallback to memory users
       user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     }
 
+<<<<<<< HEAD
     if (!user) {
       return res.status(400).json({ error: "User not found!" });
     }
@@ -191,13 +259,201 @@ app.post('/api/auth/login', async (req, res) => {
         name: user.name,
         role: user.role || 'user'
       }
+=======
+app.post('/api/payment/create-order', async (req, res) => {
+  try {
+    if (!razorpay) {
+      return res.status(500).json({ error: 'Razorpay is not configured on server' });
+    }
+
+    const { amount } = req.body || {};
+    const amountInr = Number(amount);
+
+    if (!Number.isFinite(amountInr) || amountInr <= 0) {
+      return res.status(400).json({ error: 'Valid amount (INR) is required' });
+    }
+
+    const amountPaise = Math.round(amountInr * 100);
+
+    const order = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: `rcpt_${Date.now()}`
+    });
+
+    return res.json(order);
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to create order' });
+  }
+});
+
+// Create Stripe Checkout Session
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'No items provided' });
+
+    let customerEmail;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        customerEmail = decoded.email;
+      } catch (e) {
+        // ignore invalid token
+      }
+    }
+
+    const line_items = items.map(i => ({
+      price_data: {
+        currency: 'inr',
+        product_data: { name: i.name },
+        unit_amount: Math.round((i.price || 0) * 100)
+      },
+      quantity: i.quantity || 1
+    }));
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items,
+      mode: 'payment',
+      customer_email: customerEmail,
+      success_url: `${CLIENT_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${CLIENT_URL}?checkout=cancel`
+>>>>>>> main
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+<<<<<<< HEAD
 // 🔐 SIGNUP
+=======
+// Handle checkout success: create order from Stripe session
+app.post('/api/checkout-success', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['line_items'] });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    // Create order record (MongoDB)
+    const userEmail = session.customer_details?.email || 'guest';
+    const user = users.find(u => u.email === userEmail);
+    const userId = user ? user._id : 'guest';
+
+    const items = session.line_items.data.map(li => ({ productId: '', name: li.description || '', price: (li.price.unit_amount || 0) / 100, quantity: li.quantity }));
+    const total = (session.amount_total || 0) / 100;
+
+    const order = new Order({ userId, items, total, status: 'paid' });
+    await order.save();
+
+    res.json({ message: 'Order created from checkout', order });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== ORDERS ROUTES (MongoDB) =====
+
+// Create order (requires auth)
+app.post('/api/orders', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Token required' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const { items, total, shipping, paymentMethod } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'Order items required' });
+
+    const status = paymentMethod && paymentMethod !== 'COD' ? 'paid' : 'pending';
+    const order = new Order({
+      userId: decoded.userId,
+      items,
+      total,
+      shipping,
+      paymentMethod: paymentMethod || 'COD',
+      status
+    });
+    await order.save();
+    res.json({ message: 'Order created', order });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all orders (admin only)
+app.get('/api/orders', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Token required' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const query = decoded.role === 'admin' ? {} : { userId: decoded.userId };
+    const orders = await Order.find(query).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single order (admin or owner)
+app.get('/api/orders/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Token required' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (decoded.role !== 'admin' && order.userId !== decoded.userId) return res.status(403).json({ error: 'Forbidden' });
+
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update order status (admin only)
+app.put('/api/orders/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Token required' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    order.status = req.body.status || order.status;
+    await order.save();
+    res.json({ message: 'Order updated', order });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete order (admin only)
+app.delete('/api/orders/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Token required' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    await Order.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Order deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== AUTHENTICATION ROUTES =====
+
+// SIGNUP
+>>>>>>> main
 app.post('/api/auth/signup', async (req, res) => {
   try {
     const { email, password, name, role = 'user' } = req.body;
@@ -248,7 +504,60 @@ app.post('/api/auth/signup', async (req, res) => {
 // 👤 PROFILE (protected)
 app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
+<<<<<<< HEAD
     const userId = req.user.id;
+=======
+    const { email, password, role } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required!" });
+    }
+
+    // Find user
+    const user = users.find(u => u.email === email);
+    if (!user) {
+      return res.status(400).json({ error: "User not found!" });
+    }
+
+    // Check role only if frontend sends it
+    if (role && user.role !== role) {
+      return res.status(403).json({ error: `Not authorized as ${role}` });
+    }
+
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: "Incorrect password!" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: "✅ Login successful!",
+      token,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET USER PROFILE (Protected Route)
+app.get('/api/auth/profile', (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: "Token required!" });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = users.find(u => u._id === decoded.userId);
+>>>>>>> main
     
     // Try MongoDB first
     let user = await User.findById(userId);
