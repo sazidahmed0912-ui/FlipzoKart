@@ -146,15 +146,82 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: "Email and password are required!" });
     }
 
+<<<<<<< HEAD
     // Find user in MongoDB first, fallback to memory
     let user = await User.findOne({ email });
-    
+=======
+    const newProduct = {
+      _id: Date.now().toString(),
+      name,
+      price: Number(price),
+      image,
+      category: category || 'General',
+      stock: Number(stock) || 0,
+      createdAt: new Date()
+    };
 
+    products.push(newProduct);
+    res.json({ message: "✅ Product Added!", product: newProduct });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/payment/config', (req, res) => {
+  return res.json({ keyId: process.env.RAZORPAY_KEY_ID || null });
+});
+
+app.post('/api/payment/verify', (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: 'Missing Razorpay payment fields' });
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return res.status(500).json({ error: 'Razorpay secret is not configured on server' });
+    }
+
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+    if (expected !== razorpay_signature) {
+      return res.status(400).json({ verified: false, error: 'Invalid signature' });
+    }
+
+    return res.json({ verified: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete product
+app.delete('/api/products/:id', (req, res) => {
+  try {
+    products = products.filter(p => p._id !== req.params.id);
+    res.json({ message: "✅ Product Deleted!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update product
+app.put('/api/products/:id', (req, res) => {
+  try {
+    const product = products.find(p => p._id === req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found!" });
+    }
+>>>>>>> main
+    
     if (!user) {
       // Fallback to memory users
       user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     }
 
+<<<<<<< HEAD
     if (!user) {
       return res.status(400).json({ error: "User not found!" });
     }
@@ -253,12 +320,16 @@ app.post('/api/create-checkout-session', async (req, res) => {
       customer_email: customerEmail,
       success_url: `${CLIENT_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${CLIENT_URL}?checkout=cancel`
+>>>>>>> main
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+<<<<<<< HEAD
+// 🔐 SIGNUP
+=======
 // Handle checkout success: create order from Stripe session
 app.post('/api/checkout-success', async (req, res) => {
   try {
@@ -284,6 +355,9 @@ app.post('/api/checkout-success', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ===== ORDERS ROUTES (MongoDB) =====
+
 // Create order (requires auth)
 app.post('/api/orders', async (req, res) => {
   try {
@@ -430,30 +504,60 @@ app.post('/api/auth/signup', async (req, res) => {
 // 👤 PROFILE (protected)
 app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
+<<<<<<< HEAD
     const userId = req.user.id;
+=======
+    const { email, password, role } = req.body;
 
-    // Try MongoDB first
-    let user = await User.findById(userId);
-    
-    if (!user) {
-      // Fallback to memory users
-      user = users.find(u => u.id === userId);
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required!" });
     }
 
+    // Find user
+    const user = users.find(u => u.email === email);
     if (!user) {
-      return res.status(404).json({ error: "User not found!" });
+      return res.status(400).json({ error: "User not found!" });
     }
+
+    // Check role only if frontend sends it
+    if (role && user.role !== role) {
+      return res.status(403).json({ error: `Not authorized as ${role}` });
+    }
+
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: "Incorrect password!" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.json({
-      id: user.id || user._id,
-      email: user.email,
-      name: user.name,
-      role: user.role || 'user'
+      message: "✅ Login successful!",
+      token,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
+
+// GET USER PROFILE (Protected Route)
+app.get('/api/auth/profile', (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: "Token required!" });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = users.find(u => u._id === decoded.userId);
+>>>>>>> main
     
     // Try MongoDB first
     let user = await User.findById(userId);
