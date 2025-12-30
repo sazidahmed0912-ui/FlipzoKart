@@ -10,7 +10,13 @@ const crypto = require('crypto');
 const app = express();
 
 app.use(express.json());
+
 app.use(cors());
+
+// Root route
+app.get('/', (req, res) => {
+  res.send('Flipzokart Backend is running');
+});
 
 const mongoose = require('mongoose');
 mongoose.set('bufferCommands', false); // Fail fast if not connected
