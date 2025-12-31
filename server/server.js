@@ -27,8 +27,7 @@ mongoose.connect(MONGO_URI, {
   useUnifiedTopology: true,
   tls: true,
   tlsAllowInvalidCertificates: true,
-  tlsAllowInvalidHostnames: true,
-  tlsInsecure: true,
+  tlsAllowInvalidHostnames: true
 })
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.warn('⚠️ MongoDB connection error:', err.message));
@@ -43,8 +42,7 @@ mongoose.connection.on('disconnected', () => {
     useUnifiedTopology: true,
     tls: true,
     tlsAllowInvalidCertificates: true,
-    tlsAllowInvalidHostnames: true,
-    tlsInsecure: true,
+    tlsAllowInvalidHostnames: true
   });
 });
 
