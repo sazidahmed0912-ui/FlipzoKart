@@ -84,6 +84,24 @@ function App() {
     }
   }, []);
 
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => {
+      console.log('✅ Razorpay script loaded');
+    };
+    script.onerror = () => {
+      console.error('❌ Failed to load Razorpay script');
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
   // If redirected back from Stripe Checkout, finalize order creation
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -248,6 +266,8 @@ function App() {
   const [shipping, setShipping] = useState({ name: '', phone: '', address: '', city: '', state: '', pincode: '', locality: '', landmark: '' });
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [checkoutStep, setCheckoutStep] = useState(1); // 1: shipping, 2: payment
+  const [razorpayOrder, setRazorpayOrder] = useState(null);
+  const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
 
   const handleCheckout = () => {
     if (!user) {
@@ -272,6 +292,76 @@ function App() {
       })
       .catch(err => alert('❌ Error placing order: ' + (err.response?.data?.error || err.message)))
       .finally(() => setOrderLoading(false));
+  };
+
+  const handleRazorpayPayment = async () => {
+    try {
+      setIsRazorpayLoading(true);
+      
+      // Create Razorpay order
+      const response = await axios.post('https://flipzokart-backend.onrender.com/api/payment/create-order', {
+        amount: cartTotal
+      });
+      
+      const { id, amount, currency } = response.data;
+      
+      // Razorpay checkout options
+      const options = {
+        key: 'rzp_test_RxknvH54hgJXNP',
+        amount: amount,
+        currency: currency,
+        name: 'Flipzokart Order',
+        description: 'Order Payment',
+        image: 'https://example.com/your-logo.png',
+        order_id: id,
+        handler: function (response) {
+          console.log('Razorpay response:', response);
+          
+          // After successful payment, create order
+          const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
+          const token = localStorage.getItem('token');
+          
+          axios.post('https://flipzokart-backend.onrender.com/api/orders', { 
+            items, 
+            total: cartTotal, 
+            shipping, 
+            paymentMethod: 'RAZORPAY',
+            razorpayOrderId: id,
+            razorpayPaymentId: response.razorpay_payment_id
+          }, { headers: { Authorization: `Bearer ${token}` } })
+            .then(res => {
+              setCart([]);
+              localStorage.removeItem('cart');
+              fetchOrders();
+              setCurrentPage('thankyou');
+              setRazorpayOrder(null);
+            })
+            .catch(err => {
+              alert('❌ Error creating order: ' + (err.response?.data?.error || err.message));
+            })
+            .finally(() => {
+              setIsRazorpayLoading(false);
+            });
+        },
+        prefill: {
+          contact: shipping.phone,
+          email: shipping.email || '',
+          name: shipping.name
+        },
+        theme: {
+          color: '#3399cc'
+        }
+      };
+      
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+      
+    } catch (error) {
+      console.error('Razorpay error:', error);
+      alert('❌ Payment failed: ' + error.message);
+    } finally {
+      setIsRazorpayLoading(false);
+    }
   };
 
   const fetchOrders = () => {
@@ -722,31 +812,10 @@ function App() {
         ),
       },
       {
-        value: 'UPI',
-        label: 'UPI',
+        value: 'RAZORPAY',
+        label: 'Razorpay',
         icon: (
-          <span className="h-6 w-6 flex items-center justify-center">
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/2/2e/Unified_Payments_Interface_logo.svg"
-              alt="UPI"
-              className="h-6 w-10 object-contain"
-              onError={e => { e.target.style.display = 'none'; e.target.parentNode.innerHTML = '🪙'; }}
-            />
-          </span>
-        ),
-      },
-      {
-        value: 'DEBIT',
-        label: 'Debit Card',
-        icon: (
-          <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" className="h-6 w-10 inline" />
-        ),
-      },
-      {
-        value: 'CREDIT',
-        label: 'Credit Card',
-        icon: (
-          <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" className="h-6 w-10 inline" />
+          <span className="text-2xl">💳</span>
         ),
       },
     ];
@@ -919,32 +988,37 @@ function App() {
                 </div>
                 <button
                   className="w-full bg-indigo-600 text-white py-3 font-bold rounded-xl text-lg hover:bg-indigo-700 transition disabled:bg-gray-400"
-                  disabled={orderLoading}
-                  onClick={() => {
+                  disabled={orderLoading || isRazorpayLoading}
+                  onClick={async () => {
                     if (!user) {
                       alert('Please login to place an order');
                       setCurrentPage('login');
                       return;
                     }
-                    setOrderLoading(true);
-                    const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
-                    const token = localStorage.getItem('token');
-                    axios.post('https://flipzokart-backend.onrender.com/api/orders', { items, total: cartTotal, shipping, paymentMethod }, { headers: { Authorization: `Bearer ${token}` } })
-                      .then(res => {
-                        setCart([]);
-                        localStorage.removeItem('cart');
-                        fetchOrders();
-                        setCurrentPage('thankyou');
-                        // Ensure orders are fetched again after navigating to thankyou
-                        setTimeout(() => fetchOrders(), 500);
-                      })
-                      .catch(err => {
-                        alert('❌ Error placing order: ' + (err.response?.data?.error || err.message));
-                      })
-                      .finally(() => setOrderLoading(false));
+                    
+                    // Handle different payment methods
+                    if (paymentMethod === 'RAZORPAY' || paymentMethod === 'CREDIT' || paymentMethod === 'DEBIT') {
+                      await handleRazorpayPayment();
+                    } else {
+                      // Handle COD and UPI
+                      setOrderLoading(true);
+                      const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
+                      const token = localStorage.getItem('token');
+                      axios.post('https://flipzokart-backend.onrender.com/api/orders', { items, total: cartTotal, shipping, paymentMethod }, { headers: { Authorization: `Bearer ${token}` } })
+                        .then(res => {
+                          setCart([]);
+                          localStorage.removeItem('cart');
+                          fetchOrders();
+                          setCurrentPage('thankyou');
+                        })
+                        .catch(err => {
+                          alert('❌ Error placing order: ' + (err.response?.data?.error || err.message));
+                        })
+                        .finally(() => setOrderLoading(false));
+                    }
                   }}
                 >
-                  {orderLoading ? 'Placing Order...' : 'Place Order'}
+                  {isRazorpayLoading ? 'Processing Payment...' : orderLoading ? 'Placing Order...' : 'Place Order'}
                 </button>
                 <button
                   className="w-full mt-3 bg-gray-200 text-gray-800 py-2 rounded-xl font-bold hover:bg-gray-300"
