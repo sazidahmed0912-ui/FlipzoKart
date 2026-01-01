@@ -10,13 +10,26 @@ const crypto = require('crypto');
 const app = express();
 
 app.use(express.json());
+
 app.use(cors());
+
+// Root route
+app.get('/', (req, res) => {
+  res.send('Flipzokart Backend is running');
+});
 
 const mongoose = require('mongoose');
 mongoose.set('bufferCommands', false); // Fail fast if not connected
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/flipzokart';
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  tls: true,
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true,
+  tlsInsecure: true,
+})
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.warn('⚠️ MongoDB connection error:', err.message));
 
@@ -25,7 +38,14 @@ mongoose.connection.on('error', err => {
 });
 mongoose.connection.on('disconnected', () => {
   console.warn('⚠️ Mongoose disconnected. Attempting to reconnect...');
-  mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+  mongoose.connect(MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    tls: true,
+    tlsAllowInvalidCertificates: true,
+    tlsAllowInvalidHostnames: true,
+    tlsInsecure: true,
+  });
 });
 
 // Order schema (MongoDB)
@@ -154,7 +174,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Find user in MongoDB first, fallback to memory
     let user = await User.findOne({ email });
-    
+
     if (!user) {
       // Fallback to memory users
       user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -189,62 +209,13 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ 
+    res.json({
       token,
       user: {
         id: user.id || user._id,
         email: user.email,
         name: user.name,
         role: user.role || 'user'
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 🔐 SIGNUP
-app.post('/api/auth/signup', async (req, res) => {
-  try {
-    const { email, password, name, role = 'user' } = req.body;
-
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, password, and name are required' });
-    }
-
-    // Check if user exists in MongoDB
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user in MongoDB
-    const newUser = new User({
-      email,
-      password: hashedPassword,
-      name,
-      role
-    });
-
-    await newUser.save();
-
-    const token = jwt.sign(
-      { id: newUser._id, email: newUser.email, role: newUser.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      message: 'User created successfully',
-      token,
-      user: {
-        id: newUser._id,
-        email: newUser.email,
-        name: newUser.name,
-        role: newUser.role
       }
     });
   } catch (error) {
@@ -259,7 +230,7 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
 
     // Try MongoDB first
     let user = await User.findById(userId);
-    
+
     if (!user) {
       // Fallback to memory users
       user = users.find(u => u.id === userId);
@@ -288,7 +259,7 @@ app.get('/api/products', async (req, res) => {
     if (mongoProducts.length > 0) {
       return res.json(mongoProducts);
     }
-    
+
     // Fallback to memory products
     res.json(products);
   } catch (err) {
@@ -381,6 +352,55 @@ app.post('/api/payment/create-order', async (req, res) => {
     return res.json(order);
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Failed to create order' });
+  }
+});
+
+// 🔐 SIGNUP
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, name, role = 'user' } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Email, password, and name are required' });
+    }
+
+    // Check if user exists in MongoDB
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user in MongoDB
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      name,
+      role
+    });
+
+    await newUser.save();
+
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email, role: newUser.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      token,
+      user: {
+        id: newUser._id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
