@@ -183,10 +183,10 @@ Step-by-step payment processing:
 ```json
 {
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "scripts": {
-    "postinstall": "chmod +x vercel-build.sh"
+    
   }
 }
 ```
