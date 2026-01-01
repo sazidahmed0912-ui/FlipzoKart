@@ -4,4 +4,6 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "postinstall": "chmod +x vercel-build.sh"
-  },"engines":{"node":"24.x"},"eslintConfig":{"extends":["react-app"]},"browserslist":{"production":[">0.2%","not dead","not op_mini all"],"development":["last 1 chrome version","last 1 firefox version","last 1 safari version"]},"devDependencies":{"tailwindcss":"^3.2.4"}}
+  },"engines":{
+    "node": "18.x"
+  },"eslintConfig":{"extends":["react-app"]},"browserslist":{"production":[">0.2%","not dead","not op_mini all"],"development":["last 1 chrome version","last 1 firefox version","last 1 safari version"]},"devDependencies":{"tailwindcss":"^3.2.4"}}
