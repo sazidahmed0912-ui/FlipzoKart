@@ -50,8 +50,6 @@ import CheckoutForm from './components/CheckoutForm';
 import OrderConfirmationTemplate from './components/OrderConfirmationTemplate';
 import ModernOrderConfirmation from './components/ModernOrderConfirmation';
 import LoadingSpinner from './components/LoadingSpinner';
-import { LoadingProvider, usePageTransition, useCartLoading, useCheckoutLoading, usePaymentLoading, useOrderLoading } from './context/LoadingContext';
-import { PageTransition, AddToCartButton, ProceedToCheckoutButton, PaymentButton, PlaceOrderButton } from './components/loaders';
 import axios from 'axios';
 
 function App() {
@@ -65,25 +63,7 @@ function App() {
   });
   const [form, setForm] = useState({ name: '', price: '', image: '', category: '', stock: '' });
   const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(false);
-  const [globalLoading, setGlobalLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-
-  // Loading hooks
-  const { startPageTransition, stopPageTransition } = usePageTransition();
-  const { startCartLoading, stopCartLoading } = useCartLoading();
-  const { startCheckoutLoading, stopCheckoutLoading } = useCheckoutLoading();
-  const { startPaymentLoading, updatePaymentProgress, stopPaymentLoading } = usePaymentLoading();
-  const { startOrderLoading, updateOrderProgress, stopOrderLoading } = useOrderLoading();
-
-  // Navigation function with page transitions
-  const navigateToPage = async (page) => {
-    startPageTransition(`Loading ${page}...`);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setCurrentPage(page);
-    stopPageTransition();
-  };
 
   // Check if user is already logged in
   useEffect(() => {
@@ -94,13 +74,13 @@ function App() {
       })
         .then(res => {
           setUser(res.data.user);
-          navigateToPage('home');
+          setCurrentPage('home');
           fetchProducts();
           fetchOrders(); // Fetch orders on login
         })
         .catch(() => {
           localStorage.removeItem('token');
-          navigateToPage('login');
+          setCurrentPage('login');
         });
     }
   }, []);
@@ -220,88 +200,19 @@ function App() {
   };
 
   // ADD TO CART
-  const handleAddToCart = async (product) => {
-    try {
-      startCartLoading('Adding to cart...');
-      
-      // Simulate API call delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const existingItem = cart.find(item => item._id === product._id);
-      let newCart;
-      if (existingItem) {
-        newCart = cart.map(item =>
-          item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      } else {
-        newCart = [...cart, { ...product, quantity: 1 }];
-      }
-      setCart(newCart);
-      localStorage.setItem('cart', JSON.stringify(newCart));
-      
-      // Show success feedback
-      showSuccessToast('✅ Product added to cart!');
-    } catch (error) {
-      console.error('Failed to add to cart:', error);
-      showErrorToast('❌ Failed to add to cart');
-    } finally {
-      stopCartLoading();
+  const handleAddToCart = (product) => {
+    const existingItem = cart.find(item => item._id === product._id);
+    let newCart;
+    if (existingItem) {
+      newCart = cart.map(item =>
+        item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+      );
+    } else {
+      newCart = [...cart, { ...product, quantity: 1 }];
     }
-  };
-
-  // Toast notification functions
-  const showSuccessToast = (message) => {
-    showToast(message, 'success');
-  };
-
-  const showErrorToast = (message) => {
-    showToast(message, 'error');
-  };
-
-  const showToast = (message, type = 'info') => {
-    const toast = document.createElement('div');
-    const bgColor = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6';
-    
-    toast.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: ${bgColor};
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      z-index: 9999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      animation: toast-slide-up 0.3s ease-out;
-    `;
-    toast.textContent = message;
-    
-    if (!document.querySelector('#toast-styles')) {
-      const style = document.createElement('style');
-      style.id = 'toast-styles';
-      style.textContent = `
-        @keyframes toast-slide-up {
-          from { transform: translate(-50%, 100%); opacity: 0; }
-          to { transform: translate(-50%, 0); opacity: 1; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.animation = 'toast-slide-up 0.3s ease-out reverse';
-      setTimeout(() => {
-        if (document.body.contains(toast)) {
-          document.body.removeChild(toast);
-        }
-      }, 300);
-    }, 3000);
+    setCart(newCart);
+    localStorage.setItem('cart', JSON.stringify(newCart));
+    alert("✅ Product added to cart!");
   };
 
   // REMOVE FROM CART
@@ -359,55 +270,39 @@ function App() {
   const [razorpayOrder, setRazorpayOrder] = useState(null);
   const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!user) {
-      showSuccessToast('Please login to place an order');
+      alert('Please login to place an order');
       setCurrentPage('login');
       return;
     }
-    if (cart.length === 0) {
-      showErrorToast('Cart is empty');
-      return;
-    }
+    if (cart.length === 0) return alert('Cart is empty');
     if (!shipping.name || !shipping.phone || !shipping.address || !shipping.city || !shipping.state || !shipping.pincode || !shipping.locality || !shipping.landmark) {
-      showErrorToast('Please fill all shipping details');
-      return;
+      return alert('Please fill all shipping details');
     }
-
-    try {
-      startCheckoutLoading('Preparing secure checkout...');
-      
-      // Simulate preparation delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
-      const token = localStorage.getItem('token');
-      
-      const res = await axios.post('https://flipzokart-backend.onrender.com/api/orders', { items, total: cartTotal, shipping }, { headers: { Authorization: `Bearer ${token}` } });
-      
-      showSuccessToast('✅ Order placed successfully!');
-      setCart([]);
-      setShipping({ address: '', city: '', pincode: '', phone: '' });
-      fetchOrders();
-      setCurrentPage('shop');
-    } catch (err) {
-      showErrorToast('❌ Error placing order: ' + (err.response?.data?.error || err.message));
-    } finally {
-      stopCheckoutLoading();
-    }
+    const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
+    setOrderLoading(true);
+    const token = localStorage.getItem('token');
+    axios.post('https://flipzokart-backend.onrender.com/api/orders', { items, total: cartTotal, shipping }, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => {
+        alert('✅ Order placed successfully!');
+        setCart([]);
+        setShipping({ address: '', city: '', pincode: '', phone: '' });
+        fetchOrders();
+        setCurrentPage('shop');
+      })
+      .catch(err => alert('❌ Error placing order: ' + (err.response?.data?.error || err.message)))
+      .finally(() => setOrderLoading(false));
   };
 
   const handleRazorpayPayment = async () => {
     try {
-      startPaymentLoading('Initializing payment...');
-      updatePaymentProgress(10);
+      setIsRazorpayLoading(true);
       
       // Create Razorpay order
       const response = await axios.post('https://flipzokart-backend.onrender.com/api/payment/create-order', {
         amount: cartTotal
       });
-      
-      updatePaymentProgress(30);
       
       const { id, amount, currency } = response.data;
       
@@ -420,56 +315,46 @@ function App() {
         description: 'Order Payment',
         image: 'https://example.com/your-logo.png',
         order_id: id,
-        handler: async function (response) {
+        handler: function (response) {
           console.log('Razorpay response:', response);
-          
-          updatePaymentProgress(60);
           
           // After successful payment, create order
           const items = cart.map(i => ({ productId: i._id, name: i.name, price: i.price, quantity: i.quantity }));
           const token = localStorage.getItem('token');
           
-          try {
-            updatePaymentProgress(80);
-            
-            const res = await axios.post('https://flipzokart-backend.onrender.com/api/orders', { 
-              items, 
-              total: cartTotal, 
-              shipping, 
-              paymentMethod: 'RAZORPAY',
-              razorpayOrderId: id,
-              razorpayPaymentId: response.razorpay_payment_id
-            }, { headers: { Authorization: `Bearer ${token}` } });
-            
-            updatePaymentProgress(100);
-            
-            setCart([]);
-            localStorage.removeItem('cart');
-            fetchOrders();
-            setCurrentPage('thankyou');
-            setRazorpayOrder(null);
-            
-            showSuccessToast('✅ Payment successful!');
-          } catch (err) {
-            showErrorToast('❌ Error creating order: ' + (err.response?.data?.error || err.message));
-          }
+          axios.post('https://flipzokart-backend.onrender.com/api/orders', { 
+            items, 
+            total: cartTotal, 
+            shipping, 
+            paymentMethod: 'RAZORPAY',
+            razorpayOrderId: id,
+            razorpayPaymentId: response.razorpay_payment_id
+          }, { headers: { Authorization: `Bearer ${token}` } })
+            .then(res => {
+              setCart([]);
+              localStorage.removeItem('cart');
+              fetchOrders();
+              setCurrentPage('thankyou');
+              setRazorpayOrder(null);
+            })
+            .catch(err => alert('❌ Error creating order: ' + (err.response?.data?.error || err.message)))
+            .finally(() => {
+              setIsRazorpayLoading(false);
+            });
         },
         modal: {
           ondismiss: function() {
-            stopPaymentLoading();
+            setIsRazorpayLoading(false);
           }
         }
       };
       
-      updatePaymentProgress(40);
-      
       const razorpay = new window.Razorpay(options);
       razorpay.open();
-    } catch (error) {
-      console.error('Payment initialization failed:', error);
-      showErrorToast(' Failed to initialize payment');
+    } catch (err) {
+      alert('❌ Razorpay error: ' + (err.response?.data?.error || err.message));
     } finally {
-      stopPaymentLoading();
+      setIsRazorpayLoading(false);
     }
   };
 
@@ -603,7 +488,7 @@ function App() {
               <div className="mt-6 text-center">
                 <p className="text-gray-600">Don't have an account?</p>
                 <button
-                  onClick={() => navigateToPage('signup')}
+                  onClick={() => setCurrentPage('signup')}
                   className="text-blue-600 font-bold hover:underline mt-2"
                 >
                   Sign up 👉
@@ -671,7 +556,7 @@ function App() {
               <div className="mt-6 text-center">
                 <p className="text-gray-600">Already have an account?</p>
                 <button
-                  onClick={() => navigateToPage('login')}
+                  onClick={() => setCurrentPage('login')}
                   className="text-green-600 font-bold hover:underline mt-2"
                 >
                   Login 👉
@@ -701,14 +586,14 @@ function App() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button onClick={() => navigateToPage('home')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'home' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>🏠 Home</button>
-              <button onClick={() => navigateToPage('shop')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'shop' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>🛍️ Shop</button>
-              <button onClick={() => navigateToPage('categories')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'categories' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>📂 Categories</button>
-              <button onClick={() => navigateToPage('cart')} className={`relative px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'cart' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>
+              <button onClick={() => setCurrentPage('home')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'home' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>🏠 Home</button>
+              <button onClick={() => setCurrentPage('shop')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'shop' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>🛍️ Shop</button>
+              <button onClick={() => setCurrentPage('categories')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'categories' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>📂 Categories</button>
+              <button onClick={() => setCurrentPage('cart')} className={`relative px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'cart' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>
                 🛒 Cart
                 {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow">{cart.length}</span>}
               </button>
-              <button onClick={() => navigateToPage('account')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'account' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>👤 Account</button>
+              <button onClick={() => setCurrentPage('account')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'account' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>👤 Account</button>
               <button onClick={handleLogout} className="bg-red-500 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-600 transition">🚪 Logout</button>
             </div>
           </div>
@@ -744,25 +629,25 @@ function App() {
             <div className="absolute top-full left-0 right-0 bg-gradient-to-r from-indigo-700 to-purple-700 shadow-lg">
               <div className="px-4 py-3 space-y-2">
                 <button 
-                  onClick={() => { navigateToPage('home'); setMobileMenuOpen(false); }} 
+                  onClick={() => { setCurrentPage('home'); setMobileMenuOpen(false); }} 
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'home' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
                 >
                   🏠 Home
                 </button>
                 <button 
-                  onClick={() => { navigateToPage('shop'); setMobileMenuOpen(false); }} 
+                  onClick={() => { setCurrentPage('shop'); setMobileMenuOpen(false); }} 
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'shop' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
                 >
                   🛍️ Shop
                 </button>
                 <button 
-                  onClick={() => { navigateToPage('categories'); setMobileMenuOpen(false); }} 
+                  onClick={() => { setCurrentPage('categories'); setMobileMenuOpen(false); }} 
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'categories' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
                 >
                   📂 Categories
                 </button>
                 <button 
-                  onClick={() => { navigateToPage('account'); setMobileMenuOpen(false); }} 
+                  onClick={() => { setCurrentPage('account'); setMobileMenuOpen(false); }} 
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'account' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
                 >
                   👤 Account
@@ -802,13 +687,13 @@ function App() {
               
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button 
-                  onClick={() => navigateToPage('categories')}
+                  onClick={() => setCurrentPage('categories')}
                   className="bg-gradient-to-r from-yellow-400 to-orange-500 text-indigo-900 px-6 py-3 rounded-xl font-extrabold hover:scale-105 transform transition shadow-xl"
                 >
                   🛍️ Start Shopping
                 </button>
                 <button 
-                  onClick={() => navigateToPage('categories')}
+                  onClick={() => setCurrentPage('categories')}
                   className="bg-white/20 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/30 hover:text-indigo-900 transition"
                 >
                   📂 Explore Categories
@@ -888,11 +773,7 @@ function App() {
           {/* FEATURED PRODUCTS */}
           <div className="mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center">🔥 Featured Products</h2>
-            {pageLoading ? (
-              <div className="py-12">
-                <LoadingSpinner size="large" text="Loading amazing products..." />
-              </div>
-            ) : products.length === 0 ? (
+            {products.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500 text-lg sm:text-xl mb-4">❌ No products yet</p>
                 <button 
@@ -915,11 +796,7 @@ function App() {
                       <p className="text-green-600 font-bold text-lg sm:text-xl">₹{p.price}</p>
                       <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{p.stock} in stock</span>
                     </div>
-                    <AddToCartButton 
-                      product={p} 
-                      onAddToCart={handleAddToCart}
-                      className="mt-3 sm:mt-4"
-                    />
+                    <button onClick={() => handleAddToCart(p)} className="mt-3 sm:mt-4 bg-indigo-600 text-white w-full py-2 sm:py-2 rounded-lg sm:rounded-xl font-semibold hover:bg-indigo-700 transform hover:scale-102 transition text-sm sm:text-base">🛒 Add to Cart</button>
                   </div>
                 ))}
               </div>
@@ -1015,10 +892,7 @@ function App() {
                   <p className="text-gray-500 text-xs sm:text-sm">{p.category || 'General'}</p>
                   <p className="text-green-600 font-bold text-lg sm:text-xl mt-2">₹{p.price}</p>
                   <p className="text-xs sm:text-sm text-gray-600 mb-2">Stock: {p.stock || 'Available'}</p>
-                  <AddToCartButton 
-                    product={p} 
-                    onAddToCart={handleAddToCart}
-                  />
+                  <button onClick={() => handleAddToCart(p)} className="bg-orange-500 text-white w-full py-2 rounded-lg font-bold hover:bg-orange-600 text-sm sm:text-base">🛒 Add to Cart</button>
                 </div>
               ))}
             </div>
@@ -1100,12 +974,15 @@ function App() {
                   <h3 className="text-lg sm:text-xl font-bold">Total:</h3>
                   <p className="text-lg sm:text-xl font-bold text-green-600">₹{cartTotal}</p>
                 </div>
-                <ProceedToCheckoutButton 
-                  onCheckout={() => navigateToPage('checkout')}
-                  disabled={cart.length === 0}
-                />
                 <button 
-                  onClick={() => navigateToPage('shop')} 
+                  onClick={() => setCurrentPage('checkout')} 
+                  disabled={cart.length === 0} 
+                  className="w-full bg-blue-600 text-white py-3 font-bold rounded-lg hover:bg-blue-700 disabled:bg-gray-500 transition text-sm sm:text-base"
+                >
+                  🚀 Proceed to Checkout
+                </button>
+                <button 
+                  onClick={() => setCurrentPage('shop')} 
                   className="w-full mt-2 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition text-sm sm:text-base"
                 >
                   🛍️ Continue Shopping
@@ -1334,10 +1211,22 @@ function App() {
                   }}
                 >
                   {paymentMethod === 'RAZORPAY' ? (
-                    <PaymentButton onPayment={handleRazorpayPayment} />
-                  ) : (
-                    <PlaceOrderButton onPlaceOrder={handleCheckout} />
-                  )}
+                  <button
+                    className="w-full bg-orange-500 text-white py-3 font-bold rounded-xl text-lg hover:bg-orange-600 transition disabled:bg-gray-400"
+                    onClick={handleRazorpayPayment}
+                    disabled={isRazorpayLoading || orderLoading}
+                  >
+                    {isRazorpayLoading ? 'Processing Payment...' : orderLoading ? 'Placing Order...' : 'Place Order'}
+                  </button>
+                ) : (
+                  <button
+                    className="w-full bg-orange-500 text-white py-3 font-bold rounded-xl text-lg hover:bg-orange-600 transition disabled:bg-gray-400"
+                    onClick={handleCheckout}
+                    disabled={orderLoading || isRazorpayLoading}
+                  >
+                    {orderLoading ? 'Placing Order...' : 'Place Order'}
+                  </button>
+                )}
                 </button>
                 <button
                   className="w-full mt-3 bg-gray-200 text-gray-800 py-2 rounded-xl font-bold hover:bg-gray-300"
@@ -1388,11 +1277,7 @@ function App() {
                   <h2 className="font-bold mt-3 text-lg truncate">{p.name}</h2>
                   <p className="text-gray-500 text-sm">{p.category || 'General'}</p>
                   <p className="text-green-600 font-bold text-xl mt-2">₹{p.price}</p>
-                  <AddToCartButton 
-                    product={p} 
-                    onAddToCart={handleAddToCart}
-                    className="mt-3"
-                  />
+                  <button onClick={() => handleAddToCart(p)} className="bg-orange-500 text-white w-full py-2 mt-3 rounded font-bold hover:bg-orange-600">🛒 Add to Cart</button>
                 </div>
               ))}
             </div>
@@ -1562,22 +1447,8 @@ function App() {
     );
   }
 
-  // Global Loading Overlay
-  const GlobalLoadingOverlay = () => {
-    if (!globalLoading) return null;
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-8 shadow-2xl">
-          <LoadingSpinner size="large" text={loadingMessage} />
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
-      <GlobalLoadingOverlay />
       {/* ===== LOGIN PAGE ===== */}
       {currentPage === 'login' && (
         <div className="min-h-screen bg-gradient-to-r from-blue-600 to-blue-800 flex items-center justify-center p-4">
@@ -1706,11 +1577,4 @@ function App() {
   );
 }
 
-// Wrap the entire app with LoadingProvider
-const AppWithLoading = () => (
-  <LoadingProvider>
-    <App />
-  </LoadingProvider>
-);
-
-export default AppWithLoading;
+export default App;
