@@ -49,6 +49,7 @@ import React, { useState, useEffect } from 'react';
 import CheckoutForm from './components/CheckoutForm';
 import OrderConfirmationTemplate from './components/OrderConfirmationTemplate';
 import ModernOrderConfirmation from './components/ModernOrderConfirmation';
+import LoadingSpinner from './components/LoadingSpinner';
 import axios from 'axios';
 
 function App() {
@@ -62,6 +63,9 @@ function App() {
   });
   const [form, setForm] = useState({ name: '', price: '', image: '', category: '', stock: '' });
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   // Check if user is already logged in
@@ -460,40 +464,48 @@ function App() {
         <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
           <h1 className="text-4xl font-bold text-center mb-8 text-blue-600">Flipzokart</h1>
           
-          <form onSubmit={handleLogin} className="space-y-4">
-            <h2 className="text-2xl font-bold mb-6 text-center">🔐 Login</h2>
-            <input
-              id="login-email"
-              type="email"
-              placeholder="📧 Email"
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
-              required
-            />
-            <input
-              id="login-password"
-              type="password"
-              placeholder="🔑 Password"
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
-              required
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 font-bold rounded hover:bg-blue-700 disabled:bg-gray-500"
-            >
-              {loading ? "⏳ Loading..." : "✅ Login"}
-            </button>
-          </form>
+          {loading ? (
+            <div className="py-8">
+              <LoadingSpinner size="large" text="Signing you in..." />
+            </div>
+          ) : (
+            <>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <h2 className="text-2xl font-bold mb-6 text-center">🔐 Login</h2>
+                <input
+                  id="login-email"
+                  type="email"
+                  placeholder="📧 Email"
+                  className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
+                  required
+                />
+                <input
+                  id="login-password"
+                  type="password"
+                  placeholder="🔑 Password"
+                  className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-blue-600 text-white py-3 font-bold rounded hover:bg-blue-700 disabled:bg-gray-500 transition"
+                >
+                  ✅ Login
+                </button>
+              </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">Don't have an account?</p>
-            <button
-              onClick={() => setCurrentPage('signup')}
-              className="text-blue-600 font-bold hover:underline mt-2"
-            >
-              Sign up 👉
-            </button>
-          </div>
+              <div className="mt-6 text-center">
+                <p className="text-gray-600">Don't have an account?</p>
+                <button
+                  onClick={() => setCurrentPage('signup')}
+                  className="text-blue-600 font-bold hover:underline mt-2"
+                >
+                  Sign up 👉
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -506,83 +518,163 @@ function App() {
         <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
           <h1 className="text-4xl font-bold text-center mb-8 text-green-600">Flipzokart</h1>
           
-          <form onSubmit={handleSignup} className="space-y-4">
-            <h2 className="text-2xl font-bold mb-6 text-center">📝 Sign Up</h2>
-            <input
-              id="signup-name"
-              type="text"
-              placeholder="👤 Full Name"
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
-              required
-            />
-            <input
-              id="signup-email"
-              type="email"
-              placeholder="📧 Email"
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
-              required
-            />
-            <input
-              id="signup-password"
-              type="password"
-              placeholder="🔑 Password"
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
-              required
-            />
-            <input
-              id="signup-confirm"
-              type="password"
-              placeholder="🔐 Confirm Password"
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
-              required
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-green-600 text-white py-3 font-bold rounded hover:bg-green-700 disabled:bg-gray-500"
-            >
-              {loading ? "⏳ Loading..." : "✅ Sign Up"}
-            </button>
-          </form>
+          {loading ? (
+            <div className="py-8">
+              <LoadingSpinner size="large" text="Creating your account..." />
+            </div>
+          ) : (
+            <>
+              <form onSubmit={handleSignup} className="space-y-4">
+                <h2 className="text-2xl font-bold mb-6 text-center">📝 Sign Up</h2>
+                <input
+                  id="signup-name"
+                  type="text"
+                  placeholder="👤 Full Name"
+                  className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                  required
+                />
+                <input
+                  id="signup-email"
+                  type="email"
+                  placeholder="📧 Email"
+                  className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                  required
+                />
+                <input
+                  id="signup-password"
+                  type="password"
+                  placeholder="🔑 Password"
+                  className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                  required
+                />
+                <input
+                  id="signup-confirm"
+                  type="password"
+                  placeholder="🔐 Confirm Password"
+                  className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-green-600 text-white py-3 font-bold rounded hover:bg-green-700 disabled:bg-gray-500 transition"
+                >
+                  ✅ Sign Up
+                </button>
+              </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">Already have an account?</p>
-            <button
-              onClick={() => setCurrentPage('login')}
-              className="text-green-600 font-bold hover:underline mt-2"
-            >
-              Login 👉
-            </button>
-          </div>
+              <div className="mt-6 text-center">
+                <p className="text-gray-600">Already have an account?</p>
+                <button
+                  onClick={() => setCurrentPage('login')}
+                  className="text-green-600 font-bold hover:underline mt-2"
+                >
+                  Login 👉
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
   // ===== NAVBAR COMPONENT =====
-  const Navbar = () => (
-    <nav className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex justify-between px-6 items-center shadow-2xl sticky top-0 z-50 backdrop-blur-sm">
-      <div className="flex items-center space-x-4">
-        <div className="bg-white/20 text-white rounded-full w-14 h-14 flex items-center justify-center font-extrabold text-2xl shadow-md">F</div>
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Flipzokart</h1>
-          <p className="text-xs opacity-80">Shop smart • Live happy</p>
+  const Navbar = () => {
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    
+    return (
+      <nav className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-2xl sticky top-0 z-50 backdrop-blur-sm">
+        {/* Desktop Navigation */}
+        <div className="hidden md:block">
+          <div className="px-6 py-4 flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <div className="bg-white/20 text-white rounded-full w-14 h-14 flex items-center justify-center font-extrabold text-2xl shadow-md">F</div>
+              <div>
+                <h1 className="text-2xl font-bold">Flipzokart</h1>
+                <p className="text-xs opacity-90">Your Shopping Destination</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button onClick={() => setCurrentPage('home')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'home' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>🏠 Home</button>
+              <button onClick={() => setCurrentPage('shop')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'shop' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>🛍️ Shop</button>
+              <button onClick={() => setCurrentPage('categories')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'categories' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>📂 Categories</button>
+              <button onClick={() => setCurrentPage('cart')} className={`relative px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'cart' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>
+                🛒 Cart
+                {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow">{cart.length}</span>}
+              </button>
+              <button onClick={() => setCurrentPage('account')} className={`px-3 py-2 rounded-lg font-semibold transition ${currentPage === 'account' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>👤 Account</button>
+              <button onClick={handleLogout} className="bg-red-500 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-600 transition">🚪 Logout</button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="space-x-3 flex items-center">
-        <button onClick={() => setCurrentPage('home')} className={`px-4 py-2 rounded-lg font-semibold transition ${currentPage === 'home' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>🏠 Home</button>
-        <button onClick={() => setCurrentPage('categories')} className={`px-4 py-2 rounded-lg font-semibold transition ${currentPage === 'categories' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>📂 Categories</button>
-        <button onClick={() => setCurrentPage('cart')} className={`px-4 py-2 rounded-lg font-semibold relative transition ${currentPage === 'cart' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>
-          🛒 Cart
-          {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow">{cart.length}</span>}
-        </button>
-        {/* Removed Order History button from navbar */}
-        <button onClick={() => setCurrentPage('account')} className={`px-4 py-2 rounded-lg font-semibold transition ${currentPage === 'account' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>👤 Account</button>
-        <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition">🚪 Logout</button>
-      </div>
-    </nav>
-  );
+        {/* Mobile Navigation */}
+        <div className="md:hidden">
+          {/* Mobile Header */}
+          <div className="px-4 py-3 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/20 text-white rounded-full w-10 h-10 flex items-center justify-center font-extrabold text-lg shadow-md">F</div>
+              <div>
+                <h1 className="text-lg font-bold">Flipzokart</h1>
+                <p className="text-xs opacity-90">Shopping</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button onClick={() => setCurrentPage('cart')} className={`relative p-2 rounded-lg font-semibold transition ${currentPage === 'cart' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}>
+                🛒
+                {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow">{cart.length}</span>}
+              </button>
+              <button 
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition"
+              >
+                {mobileMenuOpen ? '✕' : '☰'}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="absolute top-full left-0 right-0 bg-gradient-to-r from-indigo-700 to-purple-700 shadow-lg">
+              <div className="px-4 py-3 space-y-2">
+                <button 
+                  onClick={() => { setCurrentPage('home'); setMobileMenuOpen(false); }} 
+                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'home' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
+                >
+                  🏠 Home
+                </button>
+                <button 
+                  onClick={() => { setCurrentPage('shop'); setMobileMenuOpen(false); }} 
+                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'shop' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
+                >
+                  🛍️ Shop
+                </button>
+                <button 
+                  onClick={() => { setCurrentPage('categories'); setMobileMenuOpen(false); }} 
+                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'categories' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
+                >
+                  📂 Categories
+                </button>
+                <button 
+                  onClick={() => { setCurrentPage('account'); setMobileMenuOpen(false); }} 
+                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition ${currentPage === 'account' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'}`}
+                >
+                  👤 Account
+                </button>
+                <button 
+                  onClick={handleLogout} 
+                  className="w-full text-left px-4 py-3 rounded-lg font-semibold bg-red-500 text-white hover:bg-red-600 transition"
+                >
+                  🚪 Logout
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </nav>
+    );
+  };
   // ===== ORDER HISTORY PAGE REMOVED (merged into account) =====
 
   // ===== HOME PAGE =====
@@ -593,95 +685,156 @@ function App() {
         
         {/* HERO BANNER */}
         <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-orange-500 text-white">
-          <div className="max-w-7xl mx-auto px-6 py-24 flex items-center justify-between">
-            <div className="flex-1">
-              <h1 className="text-6xl font-bold mb-4 leading-tight">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-24">
+            {/* Mobile Layout */}
+            <div className="md:hidden text-center space-y-6">
+              <div className="text-6xl sm:text-7xl">🛒</div>
+              <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
                 🎉 Apka Number 1 <br /> E-Commerce Platform
               </h1>
-              <p className="text-xl mb-2 opacity-90">Best products, Best prices, Best service!</p>
-              <p className="text-lg mb-8 opacity-80">Lakh+ satisfied customers trust Flipzokart</p>
+              <p className="text-lg opacity-90">Best products, Best prices, Best service!</p>
+              <p className="text-base opacity-80">Lakh+ satisfied customers trust Flipzokart</p>
               
-              <div className="flex space-x-4">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button 
                   onClick={() => setCurrentPage('categories')}
-                  className="bg-gradient-to-r from-yellow-400 to-orange-500 text-indigo-900 px-8 py-3 rounded-2xl font-extrabold text-lg hover:scale-105 transform transition shadow-2xl"
+                  className="bg-gradient-to-r from-yellow-400 to-orange-500 text-indigo-900 px-6 py-3 rounded-xl font-extrabold hover:scale-105 transform transition shadow-xl"
                 >
                   🛍️ Start Shopping
                 </button>
                 <button 
                   onClick={() => setCurrentPage('categories')}
-                  className="bg-white/20 border border-white/30 text-white px-8 py-3 rounded-2xl font-semibold text-lg hover:bg-white/30 hover:text-indigo-900 transition"
+                  className="bg-white/20 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/30 hover:text-indigo-900 transition"
                 >
                   📂 Explore Categories
                 </button>
               </div>
               
-              <div className="flex space-x-8 mt-12">
-                <div>
-                  <p className="text-3xl font-bold">10K+</p>
-                  <p className="text-sm opacity-90">Products</p>
+              <div className="flex justify-center space-x-6 sm:space-x-8 pt-8">
+                <div className="text-center">
+                  <p className="text-2xl font-bold">10K+</p>
+                  <p className="text-xs opacity-90">Products</p>
                 </div>
-                <div>
-                  <p className="text-3xl font-bold">100K+</p>
-                  <p className="text-sm opacity-90">Customers</p>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">100K+</p>
+                  <p className="text-xs opacity-90">Customers</p>
                 </div>
-                <div>
-                  <p className="text-3xl font-bold">24/7</p>
-                  <p className="text-sm opacity-90">Support</p>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">24/7</p>
+                  <p className="text-xs opacity-90">Support</p>
                 </div>
               </div>
+              
+              {user?.name && (
+                <p className="text-base opacity-90 pt-4">👋 {user.name}, Shop with confidence</p>
+              )}
             </div>
-            
-            <div className="flex-1 text-center">
-              <div className="text-9xl">🛒</div>
-              <p className="text-2xl font-bold mt-4">Welcome to Flipzokart!</p>
-              <p className="text-lg mt-2 opacity-90">👋 {user?.name}, Shop with confidence</p>
+
+            {/* Desktop Layout */}
+            <div className="hidden md:flex items-center justify-between">
+              <div className="flex-1">
+                <h1 className="text-5xl lg:text-6xl font-bold mb-4 leading-tight">
+                  🎉 Apka Number 1 <br /> E-Commerce Platform
+                </h1>
+                <p className="text-xl mb-2 opacity-90">Best products, Best prices, Best service!</p>
+                <p className="text-lg mb-8 opacity-80">Lakh+ satisfied customers trust Flipzokart</p>
+                
+                <div className="flex space-x-4">
+                  <button 
+                    onClick={() => setCurrentPage('categories')}
+                    className="bg-gradient-to-r from-yellow-400 to-orange-500 text-indigo-900 px-8 py-3 rounded-2xl font-extrabold text-lg hover:scale-105 transform transition shadow-2xl"
+                  >
+                    🛍️ Start Shopping
+                  </button>
+                  <button 
+                    onClick={() => setCurrentPage('categories')}
+                    className="bg-white/20 border border-white/30 text-white px-8 py-3 rounded-2xl font-semibold text-lg hover:bg-white/30 hover:text-indigo-900 transition"
+                  >
+                    📂 Explore Categories
+                  </button>
+                </div>
+                
+                <div className="flex space-x-8 mt-12">
+                  <div>
+                    <p className="text-3xl font-bold">10K+</p>
+                    <p className="text-sm opacity-90">Products</p>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold">100K+</p>
+                    <p className="text-sm opacity-90">Customers</p>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold">24/7</p>
+                    <p className="text-sm opacity-90">Support</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex-1 text-center">
+                <div className="text-8xl lg:text-9xl">🛒</div>
+                <p className="text-2xl font-bold mt-4">Welcome to Flipzokart!</p>
+                <p className="text-lg mt-2 opacity-90">👋 {user?.name}, Shop with confidence</p>
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="p-10">
+        <div className="px-4 sm:px-6 lg:px-10 py-8">
           {/* FEATURED PRODUCTS */}
-          <h2 className="text-3xl font-bold mb-6 text-center">🔥 Featured Products</h2>
-          {products.length === 0 ? (
-            <p className="text-center text-gray-500 text-xl">❌ No products yet</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              {products.slice(0, 4).map(p => (
-                <div key={p._id} className="bg-white p-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-200 overflow-hidden">
-                  <div className="h-48 w-full bg-gradient-to-b from-white to-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
-                    <img src={p.image} className="h-full w-full object-contain" alt={p.name} />
+          <div className="mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center">🔥 Featured Products</h2>
+            {pageLoading ? (
+              <div className="py-12">
+                <LoadingSpinner size="large" text="Loading amazing products..." />
+              </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg sm:text-xl mb-4">❌ No products yet</p>
+                <button 
+                  onClick={() => setCurrentPage('shop')} 
+                  className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
+                >
+                  🛍️ Browse All Products
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                {products.slice(0, 4).map(p => (
+                  <div key={p._id} className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-200 overflow-hidden">
+                    <div className="h-32 sm:h-48 w-full bg-gradient-to-b from-white to-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
+                      <img src={p.image} className="h-full w-full object-contain" alt={p.name} />
+                    </div>
+                    <h2 className="font-bold mt-2 sm:mt-3 text-sm sm:text-lg truncate">{p.name}</h2>
+                    <p className="text-gray-500 text-xs sm:text-sm">{p.category || 'General'}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-green-600 font-bold text-lg sm:text-xl">₹{p.price}</p>
+                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{p.stock} in stock</span>
+                    </div>
+                    <button onClick={() => handleAddToCart(p)} className="mt-3 sm:mt-4 bg-indigo-600 text-white w-full py-2 sm:py-2 rounded-lg sm:rounded-xl font-semibold hover:bg-indigo-700 transform hover:scale-102 transition text-sm sm:text-base">🛒 Add to Cart</button>
                   </div>
-                  <h2 className="font-bold mt-3 text-lg truncate">{p.name}</h2>
-                  <p className="text-gray-500 text-sm">{p.category || 'General'}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-green-600 font-bold text-xl">₹{p.price}</p>
-                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{p.stock} in stock</span>
-                  </div>
-                  <button onClick={() => handleAddToCart(p)} className="mt-4 bg-indigo-600 text-white w-full py-2 rounded-xl font-semibold hover:bg-indigo-700 transform hover:scale-102 transition">🛒 Add to Cart</button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* QUICK NAVIGATION */}
-          <div className="mb-10">
-            <h2 className="text-3xl font-bold mb-6 text-center">⚡ Quick Links</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-2xl shadow-lg cursor-pointer transition transform hover:scale-105 bg-gradient-to-br from-white/80 to-white/60" onClick={() => setCurrentPage('categories')}>
-                <p className="text-4xl mb-3">📂</p>
-                <h3 className="text-xl font-bold mb-2">Browse Categories</h3>
-                <p className="text-gray-700">Explore different product categories</p>
+          <div className="mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center">⚡ Quick Links</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg cursor-pointer transition transform hover:scale-105 bg-gradient-to-br from-white/80 to-white/60" onClick={() => setCurrentPage('categories')}>
+                <p className="text-3xl sm:text-4xl mb-2 sm:mb-3">📂</p>
+                <h3 className="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Browse Categories</h3>
+                <p className="text-gray-700 text-sm sm:text-base">Explore different product categories</p>
               </div>
-              <div className="p-6 rounded-2xl shadow-lg cursor-pointer transition transform hover:scale-105 bg-gradient-to-br from-indigo-50 to-white/70" onClick={() => setCurrentPage('categories')}>
-                <p className="text-4xl mb-3">🏆</p>
-                <h3 className="text-xl font-bold mb-2">Best Sellers</h3>
-                <p className="text-gray-700">Most popular products</p>
+              <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg cursor-pointer transition transform hover:scale-105 bg-gradient-to-br from-indigo-50 to-white/70" onClick={() => setCurrentPage('categories')}>
+                <p className="text-3xl sm:text-4xl mb-2 sm:mb-3">🏆</p>
+                <h3 className="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Best Sellers</h3>
+                <p className="text-gray-700 text-sm sm:text-base">Most popular products</p>
               </div>
-              <div className="p-6 rounded-2xl shadow-lg cursor-pointer transition transform hover:scale-105 bg-gradient-to-br from-white/80 to-indigo-50" onClick={() => setCurrentPage('account')}>
-                <p className="text-4xl mb-3">👤</p>
-                <h3 className="text-xl font-bold mb-2">My Account</h3>
-                <p className="text-gray-700">Manage your profile and orders</p>
+              <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg cursor-pointer transition transform hover:scale-105 bg-gradient-to-br from-white/80 to-indigo-50" onClick={() => setCurrentPage('account')}>
+                <p className="text-3xl sm:text-4xl mb-2 sm:mb-3">👤</p>
+                <h3 className="text-lg sm:text-xl font-bold mb-1 sm:mb-2">My Account</h3>
+                <p className="text-gray-700 text-sm sm:text-base">Manage your profile and orders</p>
               </div>
             </div>
           </div>
@@ -725,15 +878,15 @@ function App() {
     return (
       <div className="bg-gray-100 min-h-screen font-sans">
         <Navbar />
-        <div className="p-10">
-          <h2 className="text-3xl font-bold mb-6">📂 Browse Categories</h2>
+        <div className="px-4 sm:px-6 lg:px-10 py-8">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6">📂 Browse Categories</h2>
           
-          <div className="flex space-x-3 mb-8 overflow-x-auto pb-4">
+          <div className="flex space-x-2 sm:space-x-3 mb-6 sm:mb-8 overflow-x-auto pb-4">
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap ${selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border-2 border-blue-600'}`}
+                className={`px-4 sm:px-6 py-2 rounded-full font-bold whitespace-nowrap text-sm sm:text-base ${selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border-2 border-blue-600'}`}
               >
                 {cat}
               </button>
@@ -741,17 +894,19 @@ function App() {
           </div>
 
           {filteredProducts.length === 0 ? (
-            <p className="text-center text-gray-500 text-xl">❌ No products in this category</p>
+            <p className="text-center text-gray-500 text-lg sm:text-xl">❌ No products in this category</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               {filteredProducts.map(p => (
-                <div key={p._id} className="bg-white p-4 rounded shadow-md hover:shadow-xl transition">
-                  <img src={p.image} className="h-48 w-full object-contain rounded" alt={p.name} />
-                  <h2 className="font-bold mt-3 text-lg truncate">{p.name}</h2>
-                  <p className="text-gray-500 text-sm">{p.category || 'General'}</p>
-                  <p className="text-green-600 font-bold text-xl mt-2">₹{p.price}</p>
-                  <p className="text-sm text-gray-600 mb-2">Stock: {p.stock || 'Available'}</p>
-                  <button onClick={() => handleAddToCart(p)} className="bg-orange-500 text-white w-full py-2 rounded font-bold hover:bg-orange-600">🛒 Add to Cart</button>
+                <div key={p._id} className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-md hover:shadow-xl transition">
+                  <div className="h-32 sm:h-48 w-full bg-gradient-to-b from-white to-gray-100 flex items-center justify-center rounded-lg overflow-hidden mb-3">
+                    <img src={p.image} className="h-full w-full object-contain" alt={p.name} />
+                  </div>
+                  <h2 className="font-bold text-sm sm:text-lg truncate">{p.name}</h2>
+                  <p className="text-gray-500 text-xs sm:text-sm">{p.category || 'General'}</p>
+                  <p className="text-green-600 font-bold text-lg sm:text-xl mt-2">₹{p.price}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-2">Stock: {p.stock || 'Available'}</p>
+                  <button onClick={() => handleAddToCart(p)} className="bg-orange-500 text-white w-full py-2 rounded-lg font-bold hover:bg-orange-600 text-sm sm:text-base">🛒 Add to Cart</button>
                 </div>
               ))}
             </div>
@@ -767,30 +922,84 @@ function App() {
     return (
       <div className="bg-gray-100 min-h-screen font-sans">
         <Navbar />
-        <div className="p-10 max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold mb-6">🛒 Your Cart</h2>
+        <div className="px-4 sm:px-6 lg:px-10 py-8 max-w-3xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6">🛒 Your Cart</h2>
           {cart.length === 0 ? (
-            <p className="text-center text-gray-500 text-xl">❌ Cart is empty</p>
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg sm:text-xl mb-4">❌ Cart is empty</p>
+              <button 
+                onClick={() => setCurrentPage('shop')} 
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                🛍️ Start Shopping
+              </button>
+            </div>
           ) : (
             <>
-              <div className="space-y-4 mb-8">
+              <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                 {cart.map(item => (
-                  <div key={item._id} className="bg-white p-4 rounded shadow-md flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-lg">{item.name}</h3>
-                      <p className="text-green-600 font-bold">₹{item.price}</p>
-                      <p className="text-sm text-gray-600">Qty: 
-                        <input type="number" min="1" value={item.quantity} onChange={e => handleUpdateQuantity(item._id, parseInt(e.target.value))} className="w-16 ml-2 p-1 border rounded" />
-                      </p>
+                  <div key={item._id} className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-md">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-base sm:text-lg truncate">{item.name}</h3>
+                        <p className="text-green-600 font-bold text-lg sm:text-xl">₹{item.price}</p>
+                        <div className="flex items-center justify-between sm:justify-start mt-2">
+                          <p className="text-sm text-gray-600">Qty:</p>
+                          <div className="flex items-center gap-2 ml-2">
+                            <button 
+                              onClick={() => handleUpdateQuantity(item._id, Math.max(1, item.quantity - 1))}
+                              className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300 transition"
+                            >
+                              -
+                            </button>
+                            <input 
+                              type="number" 
+                              min="1" 
+                              value={item.quantity} 
+                              onChange={e => handleUpdateQuantity(item._id, parseInt(e.target.value) || 1)} 
+                              className="w-12 sm:w-16 p-1 border rounded text-center text-sm sm:text-base" 
+                            />
+                            <button 
+                              onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
+                              className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300 transition"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex sm:flex-col items-center gap-2">
+                        <p className="font-bold text-sm sm:text-base">₹{item.price * item.quantity}</p>
+                        <button 
+                          onClick={() => handleRemoveFromCart(item._id)} 
+                          className="bg-red-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-red-600 font-bold text-sm sm:text-base"
+                        >
+                          🗑️ Remove
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={() => handleRemoveFromCart(item._id)} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-bold">🗑️ Remove</button>
                   </div>
                 ))}
               </div>
-              <div className="bg-white p-6 rounded shadow-md">
-                <h3 className="text-xl font-bold mb-4">Total: ₹{cartTotal}</h3>
-                <button onClick={() => setCurrentPage('checkout')} disabled={cart.length === 0} className="w-full bg-blue-600 text-white py-3 font-bold rounded hover:bg-blue-700 disabled:bg-gray-500">
-                  Proceed to Checkout
+              
+              {/* Cart Summary - Sticky on mobile */}
+              <div className="bg-white p-4 sm:p-6 rounded-lg sm:rounded-xl shadow-md sticky bottom-4 sm:relative">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold">Total:</h3>
+                  <p className="text-lg sm:text-xl font-bold text-green-600">₹{cartTotal}</p>
+                </div>
+                <button 
+                  onClick={() => setCurrentPage('checkout')} 
+                  disabled={cart.length === 0} 
+                  className="w-full bg-blue-600 text-white py-3 font-bold rounded-lg hover:bg-blue-700 disabled:bg-gray-500 transition text-sm sm:text-base"
+                >
+                  🚀 Proceed to Checkout
+                </button>
+                <button 
+                  onClick={() => setCurrentPage('shop')} 
+                  className="w-full mt-2 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition text-sm sm:text-base"
+                >
+                  🛍️ Continue Shopping
                 </button>
               </div>
             </>
@@ -821,20 +1030,19 @@ function App() {
     ];
 
     // Primary color
-    const primary = 'indigo-600';
     const highlight = 'bg-indigo-50 border-indigo-600';
 
     return (
       <div className="bg-gray-100 min-h-screen font-sans flex flex-col">
         <Navbar />
-        <div className="max-w-2xl mx-auto w-full flex-1 pb-28 px-2 sm:px-0">
+        <div className="px-4 sm:px-6 lg:px-10 py-8 max-w-2xl mx-auto w-full flex-1 pb-28">
           {/* Shipping Details Card */}
           {checkoutStep === 1 && (
-            <div className="mt-8">
-              <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 relative">
-                <div className="flex items-center mb-6">
-                  <span className="text-2xl mr-2 text-indigo-600">🚚</span>
-                  <h2 className="text-2xl font-bold tracking-tight">Shipping Details</h2>
+            <div className="mt-4 sm:mt-8">
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 relative">
+                <div className="flex items-center mb-4 sm:mb-6">
+                  <span className="text-xl sm:text-2xl mr-2 text-indigo-600">🚚</span>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Shipping Details</h2>
                 </div>
                 <form
                   onSubmit={e => {
@@ -1238,6 +1446,150 @@ function App() {
       </div>
     );
   }
+}
+
+  // Global Loading Overlay
+  const GlobalLoadingOverlay = () => {
+    if (!globalLoading) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-8 shadow-2xl">
+          <LoadingSpinner size="large" text={loadingMessage} />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <GlobalLoadingOverlay />
+      {/* ===== LOGIN PAGE ===== */}
+      {currentPage === 'login' && (
+        <div className="min-h-screen bg-gradient-to-r from-blue-600 to-blue-800 flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <h1 className="text-4xl font-bold text-center mb-8 text-blue-600">Flipzokart</h1>
+            
+            {loading ? (
+              <div className="py-8">
+                <LoadingSpinner size="large" text="Signing you in..." />
+              </div>
+            ) : (
+              <>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <h2 className="text-2xl font-bold mb-6 text-center">🔐 Login</h2>
+                  <input
+                    id="login-email"
+                    type="email"
+                    placeholder="📧 Email"
+                    className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
+                    required
+                  />
+                  <input
+                    id="login-password"
+                    type="password"
+                    placeholder="🔑 Password"
+                    className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-blue-600 text-white py-3 font-bold rounded hover:bg-blue-700 disabled:bg-gray-500 transition"
+                  >
+                    ✅ Login
+                  </button>
+                </form>
+
+                <div className="mt-6 text-center">
+                  <p className="text-gray-600">Don't have an account?</p>
+                  <button
+                    onClick={() => setCurrentPage('signup')}
+                    className="text-blue-600 font-bold hover:underline mt-2"
+                  >
+                    Sign up 👉
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== SIGNUP PAGE ===== */}
+      {currentPage === 'signup' && (
+        <div className="min-h-screen bg-gradient-to-r from-green-600 to-green-800 flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <h1 className="text-4xl font-bold text-center mb-8 text-green-600">Flipzokart</h1>
+            
+            {loading ? (
+              <div className="py-8">
+                <LoadingSpinner size="large" text="Creating your account..." />
+              </div>
+            ) : (
+              <>
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <h2 className="text-2xl font-bold mb-6 text-center">📝 Sign Up</h2>
+                  <input
+                    id="signup-name"
+                    type="text"
+                    placeholder="👤 Full Name"
+                    className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                    required
+                  />
+                  <input
+                    id="signup-email"
+                    type="email"
+                    placeholder="📧 Email"
+                    className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                    required
+                  />
+                  <input
+                    id="signup-password"
+                    type="password"
+                    placeholder="🔑 Password"
+                    className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                    required
+                  />
+                  <input
+                    id="signup-confirm"
+                    type="password"
+                    placeholder="🔐 Confirm Password"
+                    className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-green-600"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-green-600 text-white py-3 font-bold rounded hover:bg-green-700 disabled:bg-gray-500 transition"
+                  >
+                    ✅ Sign Up
+                  </button>
+                </form>
+
+                <div className="mt-6 text-center">
+                  <p className="text-gray-600">Already have an account?</p>
+                  <button
+                    onClick={() => setCurrentPage('login')}
+                    className="text-green-600 font-bold hover:underline mt-2"
+                  >
+                    Login 👉
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Loading state for other pages */}
+      {!['login', 'signup'].includes(currentPage) && (
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+          <LoadingSpinner size="large" text="Loading page..." />
+        </div>
+      )}
+    </>
+  );
 }
 
 export default App;
