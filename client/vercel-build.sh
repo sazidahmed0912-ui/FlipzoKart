@@ -1,4 +1,8 @@
-#!/usr/bin/env bash
-chmod +x node_modules/.bin/react-scripts
-npm run build
+#!/bin/bash
+set -e
 
+echo "🛠 Installing dependencies..."
+npm install
+
+echo "🏗 Building React app..."
+npx react-scripts build
