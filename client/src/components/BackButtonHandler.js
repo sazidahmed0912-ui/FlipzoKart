@@ -4,32 +4,20 @@ import { WebViewBridge } from './WebViewBridge';
 // Wrapper component that handles back button behavior for all pages
 const BackButtonHandler = ({ children }) => {
   useEffect(() => {
-    // Initialize back button handling for the entire app
-    let lastBackPress = 0;
-    
     const handleBackButton = (event) => {
       event.preventDefault();
       
-      const now = Date.now();
-      const timeSinceLastBack = now - lastBackPress;
-      
-      if (timeSinceLastBack < 2000) {
-        // Double back detected - allow exit
-        if (window.AndroidWebView) {
-          window.AndroidWebView.exitApp();
-        } else {
-          window.close();
-          window.location.href = 'about:blank';
-        }
+      // Check if we can go back in history
+      if (window.history.length > 1) {
+        // Navigate to previous page
+        window.history.back();
       } else {
-        // First back - show warning
-        lastBackPress = now;
-        showExitWarning();
-        window.history.pushState(null, '', window.location.pathname);
+        // No history to go back to - show exit confirmation
+        showExitConfirmation();
       }
     };
 
-    const showExitWarning = () => {
+    const showExitConfirmation = () => {
       const toast = document.createElement('div');
       toast.style.cssText = `
         position: fixed;
@@ -77,6 +65,7 @@ const BackButtonHandler = ({ children }) => {
       
       document.body.appendChild(toast);
       
+      // Auto-remove after 3 seconds
       setTimeout(() => {
         toast.style.animation = 'slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) reverse';
         setTimeout(() => {
@@ -84,14 +73,11 @@ const BackButtonHandler = ({ children }) => {
             document.body.removeChild(toast);
           }
         }, 400);
-      }, 2000);
+      }, 3000);
     };
 
     // Add popstate listener
     window.addEventListener('popstate', handleBackButton);
-    
-    // Push initial state
-    window.history.pushState(null, '', window.location.pathname);
     
     return () => {
       window.removeEventListener('popstate', handleBackButton);
