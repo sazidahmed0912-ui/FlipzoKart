@@ -1446,7 +1446,6 @@ function App() {
       </div>
     );
   }
-}
 
   // Global Loading Overlay
   const GlobalLoadingOverlay = () => {
