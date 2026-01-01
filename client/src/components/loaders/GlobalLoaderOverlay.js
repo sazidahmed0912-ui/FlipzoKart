@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLoading } from '../../context/LoadingContext';
-import { PremiumLoader, PaymentLoader, OrderLoader } from './PremiumLoader';
+import PremiumLoader, { PaymentLoader, OrderLoader } from './PremiumLoader';
 
 const GlobalLoaderOverlay = () => {
   const { state, GlobalLoader } = useLoading();

@@ -208,7 +208,7 @@ export const useCheckoutLoading = () => {
   const { setLoading, clearLoading } = useLoading();
   
   const startCheckoutLoading = (message = 'Preparing secure checkout...', options = {}) => {
-    return setLoading(LOADING.PROCEED_TO_CHECKOUT, message, {
+    return setLoading(LOADING_TYPES.PROCEED_TO_CHECKOUT, message, {
       showOverlay: true,
       blockScroll: true,
       timeout: 3000,
@@ -284,5 +284,3 @@ export const useOrderLoading = () => {
     progress: useLoading().progress
   };
 };
-
-export { LoadingProvider, useLoading, useButtonLoading, usePageTransition, useCartLoading, useCheckoutLoading, usePaymentLoading, useOrderLoading };

@@ -1,5 +1,5 @@
-import React from 'react';
-import { useButtonLoading } from '../../context/LoadingContext';
+import React, { useState } from 'react';
+import { useButtonLoading, useCartLoading, useCheckoutLoading, usePaymentLoading, useOrderLoading } from '../../context/LoadingContext';
 import { ButtonLoader } from './PremiumLoader';
 
 const LoadingButton = ({ 
